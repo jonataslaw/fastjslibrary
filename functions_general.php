@@ -680,6 +680,7 @@ function Wo_UrlDomain($url)
 function Wo_Secure($string, $censored_words = 1, $br = true, $strip = 0) {
     global $sqlConnect;
     $string = trim($string);
+    $string = cleanString($string);
     $string = mysqli_real_escape_string($sqlConnect, $string);
     $string = htmlspecialchars($string, ENT_QUOTES);
     if ($br == true) {
@@ -1666,7 +1667,8 @@ function getBrowser() {
           'name'      => $bname,
           'version'   => $version,
           'platform'  => $platform,
-          'pattern'    => $pattern
+          'pattern'    => $pattern,
+          'ip_address' => get_ip_address()
       );
 }
 
@@ -1718,4 +1720,8 @@ function Wo_IsMobile() {
         return true;
     }
     return false;
+}
+
+function cleanString($string) {
+    return $string = preg_replace("/&#?[a-z0-9]+;/i","", $string); 
 }
