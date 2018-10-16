@@ -1308,6 +1308,10 @@ function makeFTPdir($ftp, $dir) {
 }
 function Wo_UploadToS3($filename, $config = array()) {
     global $wo;
+    include_once('assets/libraries/s3/aws-autoloader.php');
+    include_once("assets/libraries/spaces/spaces.php");
+    include_once('assets/libraries/ftp/vendor/autoload.php');
+    
     if ($wo['config']['amazone_s3'] == 0 && $wo['config']['ftp_upload'] == 0 && $wo['config']['spaces'] == 0) {
         return false;
     }
@@ -1404,6 +1408,9 @@ function Wo_UploadToS3($filename, $config = array()) {
 }
 function Wo_DeleteFromToS3($filename, $config = array()) {
     global $wo;
+    include_once('assets/libraries/s3/aws-autoloader.php');
+    include_once("assets/libraries/spaces/spaces.php");
+    include_once('assets/libraries/ftp/vendor/autoload.php');
     if ($wo['config']['amazone_s3'] == 0 && $wo['config']['ftp_upload'] == 0 && $wo['config']['spaces'] == 0) {
         return false;
     }
@@ -1579,7 +1586,6 @@ function ToArray($obj) {
     }
     return $new;
 }
-
 function fetchDataFromURL($url = '') {
     if (empty($url)) {
         return false;
@@ -1686,6 +1692,7 @@ function Wo_RunInBackground($data = array()) {
 
 function watermark_image($target) {
     global $wo;
+    include('assets/libraries/SimpleImage-master/src/claviska/SimpleImage.php');
     if ($wo['config']['watermark'] != 1) {
         return false;
     }
@@ -1703,6 +1710,7 @@ function watermark_image($target) {
       return $err->getMessage();
     }
 }
+
 
 function Wo_IsMobile() {
     $useragent = $_SERVER['HTTP_USER_AGENT'];
