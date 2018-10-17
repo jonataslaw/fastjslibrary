@@ -619,6 +619,13 @@ function Wo_RegisterUser($registration_data, $invited = false) {
     if (!empty($get_ip)) {
         $ip = $get_ip;
     }
+    if ($wo['config']['login_auth'] == 1) {
+        $getIpInfo = fetchDataFromURL("http://ip-api.com/json/$get_ip");
+        $getIpInfo = json_decode($getIpInfo, true);
+        if ($getIpInfo['status'] == 'success' && !empty($getIpInfo['regionName']) && !empty($getIpInfo['countryCode']) && !empty($getIpInfo['timezone']) && !empty($getIpInfo['city'])) {
+            $registration_data['last_login_data'] = serialize($getIpInfo);
+        }
+    }
     $registration_data['registered'] = date('n') . '/' . date("Y");
     $registration_data['joined']     = time();
     $registration_data['password']   = sha1($registration_data['password']);
@@ -4544,9 +4551,10 @@ function Wo_DeletePost($post_id = 0) {
     }
     $user_id = Wo_Secure($wo['user']['user_id']);
     $post_id = Wo_Secure($post_id);
-    $query   = mysqli_query($sqlConnect, "SELECT `id`, `user_id`, `recipient_id`, `page_id`, `postFile`, `postType`, `postText`, `postLinkImage`, `multi_image`, `album_name` FROM " . T_POSTS . " WHERE `id` = {$post_id} AND (`user_id` = {$user_id} OR `recipient_id` = {$user_id} OR `page_id` IN (SELECT `page_id` FROM " . T_PAGES . " WHERE `user_id` = {$user_id}) OR `group_id` IN (SELECT `id` FROM " . T_GROUPS . " WHERE `user_id` = {$user_id}) OR `page_id` IN (SELECT `page_id` FROM " . T_PAGE_ADMINS . " WHERE `user_id` = {$user_id}))");
+    $query   = mysqli_query($sqlConnect, "SELECT `id`, `user_id`, `recipient_id`, `page_id`, `postFile`, `postType`, `postText`, `postLinkImage`, `multi_image`, `album_name`,`parent_id` FROM " . T_POSTS . " WHERE `id` = {$post_id} AND (`user_id` = {$user_id} OR `recipient_id` = {$user_id} OR `page_id` IN (SELECT `page_id` FROM " . T_PAGES . " WHERE `user_id` = {$user_id}) OR `group_id` IN (SELECT `id` FROM " . T_GROUPS . " WHERE `user_id` = {$user_id}) OR `page_id` IN (SELECT `page_id` FROM " . T_PAGE_ADMINS . " WHERE `user_id` = {$user_id}))");
     if (mysqli_num_rows($query) > 0 || (Wo_IsAdmin() || Wo_IsModerator())) {
 
+        $is_this_post_shared = Wo_IsThisPostShared($post_id);
         $is_post_shared = Wo_IsPostShared($post_id);
         $fetched_data = mysqli_fetch_assoc($query);
         if ($fetched_data['postType'] == 'profile_picture' || $fetched_data['postType'] == 'profile_picture_deleted' || $fetched_data['postType'] == 'profile_cover_picture') {
@@ -4573,7 +4581,7 @@ function Wo_DeletePost($post_id = 0) {
             }
         }
         if (isset($fetched_data['postFile']) && !empty($fetched_data['postFile'])) {
-            if ($fetched_data['postType'] != 'profile_picture' && $fetched_data['postType'] != 'profile_cover_picture' && !$is_post_shared) {
+            if ($fetched_data['postType'] != 'profile_picture' && $fetched_data['postType'] != 'profile_cover_picture' && !$is_post_shared && !$is_this_post_shared) {
                 @unlink(trim($fetched_data['postFile']));
                 $delete_from_s3 = Wo_DeleteFromToS3($fetched_data['postFile']);
             }
@@ -4586,11 +4594,11 @@ function Wo_DeletePost($post_id = 0) {
                 @Wo_DeleteFromToS3($fetched_data['postFileThumb']);
             }   
         }
-        if (isset($fetched_data['postLinkImage']) && !empty($fetched_data['postLinkImage']) && !$is_post_shared) {
+        if (isset($fetched_data['postLinkImage']) && !empty($fetched_data['postLinkImage']) && !$is_post_shared && !$is_this_post_shared) {
             @unlink($fetched_data['postLinkImage']);
             $delete_from_s3 = Wo_DeleteFromToS3($fetched_data['postLinkImage']);
         }
-        if (!empty($fetched_data['album_name']) || !empty($fetched_data['multi_image']) && !$is_post_shared) {
+        if (!empty($fetched_data['album_name']) || !empty($fetched_data['multi_image']) && !$is_post_shared && !$is_this_post_shared) {
             $query_delete_4 = mysqli_query($sqlConnect, "SELECT `image` FROM " . T_ALBUMS_MEDIA . " WHERE `post_id` = {$post_id}");
             while ($fetched_delete_data = mysqli_fetch_assoc($query_delete_4)) {
                 $explode2 = @end(explode('.', $fetched_delete_data['image']));
@@ -4608,7 +4616,7 @@ function Wo_DeletePost($post_id = 0) {
         }
         $product    = Wo_PostData($post_id);
         $product_id = $product['product_id'];
-        if (!empty($product_id) && !$is_post_shared) {
+        if (!empty($product_id) && !$is_post_shared && !$is_this_post_shared) {
             $query_two_3 = mysqli_query($sqlConnect, "SELECT `image` FROM " . T_PRODUCTS_MEDIA . " WHERE `product_id` = {$product_id}");
             while ($fetched_data = mysqli_fetch_assoc($query_two_3)) {
                 $explode2 = @end(explode('.', $fetched_data['image']));
@@ -6414,3 +6422,4 @@ function Wo_ProfileCompletion(){
     
     return $data;
 }
+

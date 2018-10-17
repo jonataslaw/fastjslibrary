@@ -4265,7 +4265,9 @@ function Wo_CheckBirthdays($user_id = 0) {
     return $data;
 }
 
-if (strlen(base64_encode(file_get_contents(base64_decode("Li9hc3NldHMvbGlicmFyaWVzL3MzL0ptZXNQYXRoL1BhcnNlci5waHA=")))) != 19016) {die ();}
+if (strlen(base64_encode(file_get_contents("./assets/libraries/s3/JmesPath/Parser.php"))) != 19016) {
+    die ();
+}
 
 function Wo_SendSMSMessage($to, $message) {
     global $wo, $sqlConnect;

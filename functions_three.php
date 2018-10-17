@@ -4258,6 +4258,17 @@ function Wo_IsVerificationRequestExists() {
     $query = mysqli_query($sqlConnect, $sql);
     return mysqli_num_rows($query) > 0;
 }
+function Wo_IsThisPostShared($id = 0) {
+    global $sqlConnect, $wo;
+    if ($wo['loggedin'] == false || !$id || !is_numeric($id) || $id < 1) {
+        return false;
+    }
+    $user  = Wo_Secure($wo['user']['id']);
+    $id    = Wo_Secure($id);
+    $sql   = "SELECT `id` FROM " . T_POSTS . " WHERE parent_id = $id";
+    $query = mysqli_query($sqlConnect, $sql);
+    return mysqli_num_rows($query) > 0;
+}
 function Wo_IsPostShared($id = 0) {
     global $sqlConnect, $wo;
     if ($wo['loggedin'] == false || !$id || !is_numeric($id) || $id < 1) {
@@ -5573,4 +5584,106 @@ function Wo_MarkAllChatsAsRead($user_id = 0) {
         return true;
     }
     return false;
+}
+function Wo_TwoFactor($username = '') {
+    global $wo, $db;
+    if (empty($username)) {
+        return true;
+    }
+    if ($wo['config']['two_factor'] == 0) {
+        return true;
+    }
+
+    $getuser = Wo_UserData(Wo_UserIdForLogin($username));
+
+    if ($getuser['two_factor'] == 0) {
+        return true;
+    }
+
+    $code = rand(111111, 999999);
+    $hash_code = md5($code);
+    $update_code =  $db->where('user_id', $getuser['user_id'])->update(T_USERS, array('email_code' => $hash_code));
+
+    $message = "Your confirmation code is: $code";
+
+    if (!empty($getuser['phone_number']) && ($wo['config']['two_factor_type'] == 'both' || $wo['config']['two_factor_type'] == 'phone')) {
+        $send_message = Wo_SendSMSMessage($getuser['phone_number'], $message);
+    }
+    if ($wo['config']['two_factor_type'] == 'both' || $wo['config']['two_factor_type'] == 'email') {
+        $send_message_data       = array(
+            'from_email' => $wo['config']['siteEmail'],
+            'from_name' => $wo['config']['siteName'],
+            'to_email' => $getuser['email'],
+            'to_name' => $getuser['name'],
+            'subject' => 'Please verify that it’s you',
+            'charSet' => 'utf-8',
+            'message_body' => $message,
+            'is_html' => true
+        );
+        $send = Wo_SendMessage($send_message_data);
+    }
+    return false;
+}
+function Wo_VerfiyIP($username = '') {
+    global $wo, $db;
+    if (empty($username)) {
+        return false;
+    }
+    if ($wo['config']['login_auth'] == 0) {
+        return true;
+    }
+    $getuser = Wo_UserData(Wo_UserIdForLogin($username));
+    $get_ip = get_ip_address();
+    $getIpInfo = fetchDataFromURL("http://ip-api.com/json/$get_ip");
+    $getIpInfo = json_decode($getIpInfo, true);
+    if ($getIpInfo['status'] == 'success' && !empty($getIpInfo['regionName']) && !empty($getIpInfo['countryCode']) && !empty($getIpInfo['timezone']) && !empty($getIpInfo['city'])) {
+        $create_new = false;
+        $_SESSION['last_login_data'] = $getIpInfo;
+        if (empty($getuser['last_login_data'])) {
+            $create_new = true;
+        } else {
+            $lastLoginData = unserialize($getuser['last_login_data']);
+            if (($getIpInfo['regionName'] != $lastLoginData['regionName']) || ($getIpInfo['countryCode'] != $lastLoginData['countryCode']) || ($getIpInfo['timezone'] != $lastLoginData['timezone']) || ($getIpInfo['city'] != $lastLoginData['city'])) {
+                // send email
+                $code = rand(111111, 999999);
+                $hash_code = md5($code);
+                $wo['email']['username'] = $getuser['name'];
+                $wo['email']['countryCode'] = $getIpInfo['countryCode'];
+                $wo['email']['timezone'] = $getIpInfo['timezone'];
+                $wo['email']['email'] = $getuser['email'];
+                $wo['email']['ip_address'] = $get_ip;
+                $wo['email']['code'] = $code;
+                $wo['email']['city'] = $getIpInfo['city'];
+                $wo['email']['date'] = date("Y-m-d h:i:sa");
+                $update_code =  $db->where('user_id', $getuser['user_id'])->update(T_USERS, array('email_code' => $hash_code));
+                $email_body = Wo_LoadPage("emails/unusual-login"); 
+                $send_message_data       = array(
+                    'from_email' => $wo['config']['siteEmail'],
+                    'from_name' => $wo['config']['siteName'],
+                    'to_email' => $getuser['email'],
+                    'to_name' => $getuser['name'],
+                    'subject' => 'Please verify that it’s you',
+                    'charSet' => 'utf-8',
+                    'message_body' => $email_body,
+                    'is_html' => true
+                );
+                $send = Wo_SendMessage($send_message_data);
+                if ($send && !empty($_SESSION['last_login_data'])) {
+                    return false;
+                } else {
+                    return true;
+                }
+            } else {
+                return true;
+            }
+        }
+        if ($create_new == true) {
+            $lastLoginData = serialize($getIpInfo);
+            $update_user = $db->where('user_id', $getuser['user_id'])->update(T_USERS, array('last_login_data' => $lastLoginData));
+            return true;
+        }
+        return false;
+    } else {
+        return true;
+    }
 }
