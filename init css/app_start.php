@@ -60,9 +60,9 @@ $config['theme_url'] = $site_url . '/themes/' . $config['theme'];
 
 $config['site_url']  = $site_url;
 $wo['site_url']      = $site_url;
-$s3_site_url         = 'https://test.s3.wasabisys.com';
+$s3_site_url         = 'https://test.s3.amazonaws.com';
 if (!empty($config['bucket_name'])) {
-    $s3_site_url = "https://{bucket}.s3.wasabisys.com";
+    $s3_site_url = "https://{bucket}.s3.amazonaws.com";
     $s3_site_url = str_replace('{bucket}', $config['bucket_name'], $s3_site_url);
 }
 $config['s3_site_url'] = $s3_site_url;
@@ -161,7 +161,7 @@ $wo['site_pages'] = array(
     'authorize'
 );
 
-$wo['script_version']  = '2.0.3';
+$wo['script_version']  = '2.0.3.1';
 $http_header           = 'http://';
 if (!empty($_SERVER['HTTPS'])) {
     $http_header = 'https://';
