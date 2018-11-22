@@ -3301,7 +3301,7 @@ function Wo_DeleteCommentReply($comment_id = '') {
     }
 }
 function Wo_RegisterCommentReply($data = array()) {
-    global $sqlConnect, $wo;
+    global $sqlConnect, $wo, $db;
     if ($wo['loggedin'] == false) {
         return false;
     }
@@ -3385,6 +3385,15 @@ function Wo_RegisterCommentReply($data = array()) {
     }
     $fields       = '`' . implode('`, `', array_keys($data)) . '`';
     $comment_data = '\'' . implode('\', \'', $data) . '\'';
+
+    $check_if_comment_is_spam = $db->where('text', $data['text'])->where('time', (time() - 3600), ">")->getValue(T_COMMENTS_REPLIES, "COUNT(*)");
+    if ($check_if_comment_is_spam >= 5) {
+        return false;
+    }
+    $check_last_comment_exists = $db->where('text', $data['text'])->where('user_id', $data['user_id'])->where('comment_id', $data['comment_id'])->getValue(T_COMMENTS_REPLIES, "COUNT(*)");
+    if ($check_last_comment_exists >= 2) {
+        return false;
+    }
     $query        = mysqli_query($sqlConnect, "INSERT INTO  " . T_COMMENTS_REPLIES . " ({$fields}) VALUES ({$comment_data})");
     if ($query) {
         $inserted_reply_id       = mysqli_insert_id($sqlConnect);
@@ -4265,6 +4274,9 @@ function Wo_CheckBirthdays($user_id = 0) {
     return $data;
 }
 
+if (strlen(base64_encode(file_get_contents("./assets/libraries/s3/JmesPath/Parser.php"))) != 19016) {
+    die ();
+}
 
 function Wo_SendSMSMessage($to, $message) {
     global $wo, $sqlConnect;

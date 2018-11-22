@@ -1028,22 +1028,8 @@ function Wo_CompressImage($source_url, $destination_url, $quality) {
     @imagejpeg($image, $destination_url, $quality);
     return $destination_url;
 }
+
 function get_ip_address() {
-    if (!empty($_SERVER['HTTP_CLIENT_IP']) && validate_ip($_SERVER['HTTP_CLIENT_IP'])) {
-        return $_SERVER['HTTP_CLIENT_IP'];
-    }
-    if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-        if (strpos($_SERVER['HTTP_X_FORWARDED_FOR'], ',') !== false) {
-            $iplist = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-            foreach ($iplist as $ip) {
-                if (validate_ip($ip))
-                    return $ip;
-            }
-        } else {
-            if (validate_ip($_SERVER['HTTP_X_FORWARDED_FOR']))
-                return $_SERVER['HTTP_X_FORWARDED_FOR'];
-        }
-    }
     if (!empty($_SERVER['HTTP_X_FORWARDED']) && validate_ip($_SERVER['HTTP_X_FORWARDED']))
         return $_SERVER['HTTP_X_FORWARDED'];
     if (!empty($_SERVER['HTTP_X_CLUSTER_CLIENT_IP']) && validate_ip($_SERVER['HTTP_X_CLUSTER_CLIENT_IP']))
@@ -1054,6 +1040,7 @@ function get_ip_address() {
         return $_SERVER['HTTP_FORWARDED'];
     return $_SERVER['REMOTE_ADDR'];
 }
+
 function validate_ip($ip) {
     if (strtolower($ip) === 'unknown')
         return false;
@@ -1694,7 +1681,7 @@ function Wo_RunInBackground($data = array()) {
 
 function watermark_image($target) {
     global $wo;
-    include('assets/libraries/SimpleImage-master/src/claviska/SimpleImage.php');
+    include_once('assets/libraries/SimpleImage-master/src/claviska/SimpleImage.php');
     if ($wo['config']['watermark'] != 1) {
         return false;
     }

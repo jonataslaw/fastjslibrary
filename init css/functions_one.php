@@ -2189,7 +2189,7 @@ function Wo_RegisterNotification($data = array()) {
         if ($sql_query_three) {
             if ($wo['config']['emailNotification'] == 1 && $recipient['emailNotification'] == 1) {
                 $send_mail = false;
-                if ($data['type'] == 'liked_post' && $recipient['e_liked'] == 1) {
+                if (($data['type'] == 'liked_post' || $data['type'] == 'reaction') && $recipient['e_liked'] == 1) {
                     $send_mail = true;
                 }
                 if ($data['type'] == 'share_post' && $recipient['e_shared'] == 1) {
@@ -2230,7 +2230,6 @@ function Wo_RegisterNotification($data = array()) {
                     }
                     $data['notifier']        = $notifier;
                     $data['url']             = Wo_SeoLink($url);
-                    $data['recipient']       = $recipient;
                     $data['post_data']       = $post_data;
                     $wo['emailNotification'] = $data;
                     $send_message_data       = array(
@@ -3238,16 +3237,11 @@ function Wo_EditMarkup($text, $link = true, $hashtag = true, $mention = true) {
     return $text;
 }
 function Wo_Emo($string = '') {
-    global $emo,$wo;
-
-    if( substr($string, 0, 1) == "~" ){
-        $string = '<img src="' . $wo['config']['theme_url'] .'/emoji/'. str_replace("~","",$string) .'.png" style="cursor:  pointer;width: 25px;height: 25px;">';
-    }else{
-        foreach ($emo as $code => $name) {
-            $code   = $code;
-            $name   = '<i class="twa-lg twa twa-' . $name . '"></i>';
-            $string = str_replace($code, $name, $string);
-        }
+   global $emo,$wo;
+   foreach ($emo as $code => $name) {
+        $code   = $code;
+        $name   = '<i class="twa-lg twa twa-' . $name . '"></i>';
+        $string = str_replace($code, $name, $string);
     }
     return $string;
 }
@@ -3675,7 +3669,8 @@ function Wo_RegisterPost($re_data = array('recipient_id' => 0)) {
     }
     if (!empty($re_data['postText'])) {
         if ($wo['config']['maxCharacters'] > 0) {
-            if (mb_strlen($re_data['postText']) > $wo['config']['maxCharacters']) {
+            if ((mb_strlen($re_data['postText']) - 10) > $wo['config']['maxCharacters']) {
+                return false;
             }
         }
         $re_data['postVine']        = '';
@@ -4417,7 +4412,7 @@ function Wo_GetPosts($data = array('filter_by' => 'all', 'after_post_id' => 0, '
                   )
             )";
         }
-        
+        $query_text .= " AND `postPrivacy` <> '3'";
         $query_text .= " AND `postShare` NOT IN (1)";
         if (!empty($groups_not_joined)) {
             $implode_groups = implode($groups_not_joined, ',');
@@ -4553,7 +4548,8 @@ function Wo_DeletePost($post_id = 0) {
     $user_id = Wo_Secure($wo['user']['user_id']);
     $post_id = Wo_Secure($post_id);
     $query   = mysqli_query($sqlConnect, "SELECT `id`, `user_id`, `recipient_id`, `page_id`, `postFile`, `postType`, `postText`, `postLinkImage`, `multi_image`, `album_name`,`parent_id` FROM " . T_POSTS . " WHERE `id` = {$post_id} AND (`user_id` = {$user_id} OR `recipient_id` = {$user_id} OR `page_id` IN (SELECT `page_id` FROM " . T_PAGES . " WHERE `user_id` = {$user_id}) OR `group_id` IN (SELECT `id` FROM " . T_GROUPS . " WHERE `user_id` = {$user_id}) OR `page_id` IN (SELECT `page_id` FROM " . T_PAGE_ADMINS . " WHERE `user_id` = {$user_id}))");
-    if (mysqli_num_rows($query) > 0 || (Wo_IsAdmin() || Wo_IsModerator())) {
+    $is_me = mysqli_num_rows($query);
+    if ($is_me > 0 || (Wo_IsAdmin() || Wo_IsModerator())) {
 
         $is_this_post_shared = Wo_IsThisPostShared($post_id);
         $is_post_shared = Wo_IsPostShared($post_id);
@@ -4647,7 +4643,9 @@ function Wo_DeletePost($post_id = 0) {
         $query_delete .= mysqli_query($sqlConnect, "DELETE FROM " . T_HIDDEN_POSTS . " WHERE `post_id` = {$post_id}");
         $query_delete .= mysqli_query($sqlConnect, "DELETE FROM " . T_REACTIONS . " WHERE `post_id` = '{$post_id}'");
 
-        Wo_RegisterPoint($post_id, "createpost", "-");
+        if ($is_me > 0) {
+            Wo_RegisterPoint($post_id, "createpost", "-");
+        }
 
         return true;
     } else {
@@ -5841,7 +5839,7 @@ function Wo_IsShared($post_id, $user_id) {
     }
 }
 function Wo_RegisterPostComment($data = array()) {
-    global $sqlConnect, $wo;
+    global $sqlConnect, $wo, $db;
     if (empty($data['post_id']) || !is_numeric($data['post_id']) || $data['post_id'] < 0) {
         return false;
     }
@@ -5860,9 +5858,10 @@ function Wo_RegisterPostComment($data = array()) {
     if ($getPost['comments_status'] == 0) {
         return false;
     }
+    
     if (!empty($data['text'])) {
         if ($wo['config']['maxCharacters'] > 0) {
-            if (strlen($data['text']) > $wo['config']['maxCharacters']) {
+            if (mb_strlen($data['text']) - 10 > $wo['config']['maxCharacters']) {
                 return false;
             }
         }
@@ -5950,6 +5949,18 @@ function Wo_RegisterPostComment($data = array()) {
     }
     $fields       = '`' . implode('`, `', array_keys($data)) . '`';
     $comment_data = '\'' . implode('\', \'', $data) . '\'';
+    $check_if_comment_is_spam = $db->where('text', $data['text'])->where('time', (time() - 3600), ">")->getValue(T_COMMENTS, "COUNT(*)");
+    if ($check_if_comment_is_spam >= 5) {
+        return false;
+    }
+    $check_last_comment_exists = $db->where('text', $data['text'])->where('user_id', $data['user_id'])->where('post_id', $data['post_id'])->getValue(T_COMMENTS, "COUNT(*)");
+    if ($check_last_comment_exists >= 2) {
+        return false;
+    }
+    // $check_last_comment = $db->where('user_id', $data['user_id'])->where('post_id', $data['post_id'])->where('time', (time() - 3600), ">=")->getValue(T_COMMENTS, "COUNT(*)");
+    // if ($check_last_comment >= 5) {
+    //     return false;
+    // }
     $query        = mysqli_query($sqlConnect, "INSERT INTO  " . T_COMMENTS . " ({$fields}) VALUES ({$comment_data})");
     if ($query) {
         $inserted_comment_id     = mysqli_insert_id($sqlConnect);

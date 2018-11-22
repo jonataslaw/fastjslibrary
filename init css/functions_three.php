@@ -98,6 +98,10 @@ function Wo_RegisterPoint($post_id, $type, $action = '+'){
     }
 }
 
+function logData($data) {
+    file_put_contents('upload/log.txt', $data . PHP_EOL, FILE_APPEND);
+}
+
 function Wo_RegisterProductMedia($id, $media) {
     global $wo, $sqlConnect;
     if (empty($id) or !is_numeric($id) or $id < 1) {
@@ -1893,7 +1897,7 @@ function Wo_BbcodeToHtml($bbtext) {
 
     $bbtext     = str_ireplace(array_keys($bbtags), array_values($bbtags), $bbtext);
     $bbextended = array(
-        "/\[url](.*?)\[\/url]/i" => "<a href=\"http://$1\" title=\"$1\">$1</a>",
+        "/\[url](.*?)\[\/url]/i" => "<a href=\"$1\" title=\"$1\">$1</a>",
 
         "/\[url=(.*?)\](.*?)\[\/url\]/i" => "<a href=\"$1\" title=\"$1\">$2</a>",
 
@@ -5585,7 +5589,7 @@ function Wo_MarkAllChatsAsRead($user_id = 0) {
     }
     return false;
 }
-function Wo_TwoFactor($username = '') {
+function Wo_TwoFactor($username = '', $id_or_u = 'user') {
     global $wo, $db;
     if (empty($username)) {
         return true;
@@ -5594,7 +5598,11 @@ function Wo_TwoFactor($username = '') {
         return true;
     }
 
-    $getuser = Wo_UserData(Wo_UserIdForLogin($username));
+    if ($id_or_u == 'id') {
+        $getuser = Wo_UserData($username);
+    } else {
+        $getuser = Wo_UserData(Wo_UserIdForLogin($username));
+    }
 
     if ($getuser['two_factor'] == 0) {
         return true;
