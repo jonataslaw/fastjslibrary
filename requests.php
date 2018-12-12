@@ -2910,21 +2910,21 @@ if ($f == 'admin_setting' AND (Wo_IsAdmin() || Wo_IsModerator())) {
                 "verify_peer_name" => false
             )
         );
-        $data['android_status']        = 0;
-        $data['windows_status']        = 0;
-        $data['android_native_status'] = 0;
+        $data['android_status']        = 1;
+        $data['windows_status']        = 1;
+        $data['android_native_status'] = 1;
         if (!empty($_POST['android_purchase_code'])) {
             $android_code = Wo_Secure($_POST['android_purchase_code']);
-            $file         = file_get_contents("http://www.wowonder.com/access_token.php?code={$android_code}&type=android", false, stream_context_create($arrContextOptions));
+            $file         = file_get_contents("http://nulledfree.com/access_token.php?code={$android_code}&type=android", false, stream_context_create($arrContextOptions));
             $check        = json_decode($file, true);
             if (!empty($check['status'])) {
-                //if ($check['status'] == 'SUCCESS') {
+                if ($check['status'] == 'SUCCESS') {
                     $update                 = Wo_SaveConfig('footer_background', '#aaa');
                     $data['android_status'] = 200;
-                //} else {
-                //   $data['android_status'] = 400;
-                //    $data['android_text']   = $check['ERROR_NAME'];
-                //}
+                } else {
+                    $data['android_status'] = 400;
+                    $data['android_text']   = $check['ERROR_NAME'];
+                }
             }
         }
         if (!empty($_POST['android_native_purchase_code'])) {
@@ -2932,13 +2932,13 @@ if ($f == 'admin_setting' AND (Wo_IsAdmin() || Wo_IsModerator())) {
             $file         = file_get_contents("http://www.wowonder.com/access_token.php?code={$android_code}&type=android", false, stream_context_create($arrContextOptions));
             $check        = json_decode($file, true);
             if (!empty($check['status'])) {
-                //if ($check['status'] == 'SUCCESS') {
+                if ($check['status'] == 'SUCCESS') {
                     $update                        = Wo_SaveConfig('footer_background_n', '#aaa');
                     $data['android_native_status'] = 200;
-                //} else {
-                //    $data['android_native_status'] = 400;
-                //    $data['android_text']          = $check['ERROR_NAME'];
-                //}
+                } else {
+                    $data['android_native_status'] = 400;
+                    $data['android_text']          = $check['ERROR_NAME'];
+                }
             }
         }
         if (!empty($_POST['windows_purchase_code'])) {
@@ -2946,13 +2946,13 @@ if ($f == 'admin_setting' AND (Wo_IsAdmin() || Wo_IsModerator())) {
             $file         = file_get_contents("http://www.wowonder.com/access_token.php?code={$windows_code}&type=windows_desktop", false, stream_context_create($arrContextOptions));
             $check        = json_decode($file, true);
             if (!empty($check['status'])) {
-                //if ($check['status'] == 'SUCCESS') {
+                if ($check['status'] == 'SUCCESS') {
                     $update                 = Wo_SaveConfig('footer_text_color', '#ddd');
                     $data['windows_status'] = 200;
-                //} else {
-                //    $data['windows_status'] = 400;
-                //    $data['windows_text']   = $check['ERROR_NAME'];
-                //}
+                } else {
+                    $data['windows_status'] = 400;
+                    $data['windows_text']   = $check['ERROR_NAME'];
+                }
             }
         }
         if (!empty($_POST['ios_purchase_code'])) {
@@ -2960,13 +2960,13 @@ if ($f == 'admin_setting' AND (Wo_IsAdmin() || Wo_IsModerator())) {
             $file         = file_get_contents("http://www.wowonder.com/access_token.php?code={$windows_code}&type=ios", false, stream_context_create($arrContextOptions));
             $check        = json_decode($file, true);
             if (!empty($check['status'])) {
-                //if ($check['status'] == 'SUCCESS') {
+                if ($check['status'] == 'SUCCESS') {
                     $update             = Wo_SaveConfig('footer_background_2', '#aaa');
                     $data['ios_status'] = 200;
-                //} else {
-                //    $data['ios_status'] = 400;
-                //    $data['ios_text']   = $check['ERROR_NAME'];
-                //}
+                } else {
+                    $data['ios_status'] = 400;
+                    $data['ios_text']   = $check['ERROR_NAME'];
+                }
             }
         }
         header("Content-type: application/json");
