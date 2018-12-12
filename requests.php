@@ -60,6 +60,22 @@ if ($f == 'session_status') {
     echo json_encode($data);
     exit();
 }
+if ($f == 'open_lightbox') {
+    $html = '';
+    if (!empty($_GET['post_id'])) {
+        $wo['story'] = Wo_PostData($_GET['post_id']);
+        if (!empty($wo['story'])) {
+            $html = Wo_LoadPage('lightbox/content');
+        }
+    }
+    $data = array(
+        'status' => 200,
+        'html' => $html
+    );
+    header("Content-type: application/json");
+    echo json_encode($data);
+    exit();
+}
 if ($f == 'get_welcome_users') {
     $html = '';
     foreach (Wo_WelcomeUsers() as $wo['user']) {
@@ -831,6 +847,7 @@ if ($f == 'recoversms') {
 }
 if ($f == 'reset_password') {
     if (isset($_POST['id'])) {
+        $user_id  = explode("_", $_POST['id']);
         if (Wo_isValidPasswordResetToken($_POST['id']) === false) {
             $errors = $error_icon . $wo['lang']['invalid_token'];
         } elseif (empty($_POST['id'])) {
@@ -839,9 +856,15 @@ if ($f == 'reset_password') {
             $errors = $error_icon . $wo['lang']['please_check_details'];
         } elseif (strlen($_POST['password']) < 5) {
             $errors = $error_icon . $wo['lang']['password_short'];
+        } else if (Wo_TwoFactor($user_id[0], 'id') === false) {
+            $_SESSION['code_id'] = $user_id[0];
+            $data_               = array(
+                'status' => 600,
+                'location' => $wo['config']['site_url'] . '/unusual-login?type=two-factor'
+            );
+            $phone               = 1;
         }
-        if (empty($errors)) {
-            $user_id  = explode("_", $_POST['id']);
+        if (empty($errors) && empty($phone)) {
             $password = Wo_Secure($_POST['password']);
             if (Wo_ResetPassword($user_id[0], $password) === true) {
                 $_SESSION['user_id'] = Wo_CreateLoginSession($user_id[0]);
@@ -946,6 +969,182 @@ if ($f == 'get_more_hashtag_posts') {
     echo json_encode($data);
     exit();
 }
+if ($f == 'open_album_lightbox') {
+    $html = '';
+    if (!empty($_GET['image_id'])) {
+        $data_image = array(
+            'id' => (int) $_GET['image_id']
+        );
+        if ($_GET['type'] == 'album') {
+            $wo['image'] = Wo_AlbumImageData($data_image);
+            if (!empty($wo['image'])) {
+                $html = Wo_LoadPage('lightbox/album-content');
+            }
+        } else {
+            $wo['image'] = Wo_ProductImageData($data_image);
+            if (!empty($wo['image'])) {
+                $html = Wo_LoadPage('lightbox/product-content');
+            }
+        }
+    }
+    $data = array(
+        'status' => 200,
+        'html' => $html
+    );
+    header("Content-type: application/json");
+    echo json_encode($data);
+    exit();
+}
+if ($f == 'get_next_album_image') {
+    $html = '';
+    if (!empty($_GET['after_image_id'])) {
+        $data_image  = array(
+            'post_id' => (int) $_GET['post_id'],
+            'after_image_id' => (int) $_GET['after_image_id']
+        );
+        $wo['image'] = Wo_AlbumImageData($data_image);
+        if (!empty($wo['image'])) {
+            $html = Wo_LoadPage('lightbox/album-content');
+        }
+        $data = array(
+            'status' => 200,
+            'html' => $html
+        );
+    }
+    header("Content-type: application/json");
+    echo json_encode($data);
+    exit();
+}
+if ($f == 'get_previous_album_image') {
+    $html = '';
+    if (!empty($_GET['before_image_id'])) {
+        $data_image  = array(
+            'post_id' => $_GET['post_id'],
+            'before_image_id' => $_GET['before_image_id']
+        );
+        $wo['image'] = Wo_AlbumImageData($data_image);
+        if (!empty($wo['image'])) {
+            $html = Wo_LoadPage('lightbox/album-content');
+        }
+        $data = array(
+            'status' => 200,
+            'html' => $html
+        );
+    }
+    header("Content-type: application/json");
+    echo json_encode($data);
+    exit();
+}
+if ($f == 'get_next_product_image') {
+    $html = '';
+    if (!empty($_GET['after_image_id'])) {
+        $data_image  = array(
+            'product_id' => $_GET['product_id'],
+            'after_image_id' => $_GET['after_image_id']
+        );
+        $wo['image'] = Wo_ProductImageData($data_image);
+        if (!empty($wo['image'])) {
+            $html = Wo_LoadPage('lightbox/product-content');
+        }
+        $data = array(
+            'status' => 200,
+            'html' => $html
+        );
+    }
+    header("Content-type: application/json");
+    echo json_encode($data);
+    exit();
+}
+if ($f == 'get_previous_product_image') {
+    $html = '';
+    if (!empty($_GET['before_image_id'])) {
+        $data_image  = array(
+            'product_id' => $_GET['product_id'],
+            'before_image_id' => $_GET['before_image_id']
+        );
+        $wo['image'] = Wo_ProductImageData($data_image);
+        if (!empty($wo['image'])) {
+            $html = Wo_LoadPage('lightbox/product-content');
+        }
+        $data = array(
+            'status' => 200,
+            'html' => $html
+        );
+    }
+    header("Content-type: application/json");
+    echo json_encode($data);
+    exit();
+}
+if ($f == 'open_multilightbox') {
+    $html = '';
+    if (!empty($_POST['url'])) {
+        $wo['lighbox']['url'] = $_POST['url'];
+        $html                 = Wo_LoadPage('lightbox/content-multi');
+    }
+    $data = array(
+        'status' => 200,
+        'html' => $html
+    );
+    header("Content-type: application/json");
+    echo json_encode($data);
+    exit();
+}
+if ($f == 'get_next_image') {
+    $html      = '';
+    $postsData = array(
+        'limit' => 1,
+        'filter_by' => 'photos',
+        'after_post_id' => Wo_Secure($_GET['post_id'])
+    );
+    if (!empty($_GET['type']) && !empty($_GET['id'])) {
+        if ($_GET['type'] == 'profile') {
+            $postsData['publisher_id'] = $_GET['id'];
+        } else if ($_GET['type'] == 'page') {
+            $postsData['page_id'] = $_GET['id'];
+        } else if ($_GET['type'] == 'group') {
+            $postsData['group_id'] = $_GET['id'];
+        }
+    }
+    foreach (Wo_GetPosts($postsData) as $wo['story']) {
+        $html .= Wo_LoadPage('lightbox/content');
+    }
+    $data = array(
+        'status' => 200,
+        'html' => $html
+    );
+    header("Content-type: application/json");
+    echo json_encode($data);
+    exit();
+}
+if ($f == 'get_previous_image') {
+    $html      = '';
+    $postsData = array(
+        'limit' => 1,
+        'filter_by' => 'photos',
+        'order' => 'ASC',
+        'before_post_id' => Wo_Secure($_GET['post_id'])
+    );
+    if (!empty($_GET['type']) && !empty($_GET['id'])) {
+        if ($_GET['type'] == 'profile') {
+            $postsData['publisher_id'] = $_GET['id'];
+        } else if ($_GET['type'] == 'page') {
+            $postsData['page_id'] = $_GET['id'];
+        } else if ($_GET['type'] == 'group') {
+            $postsData['group_id'] = $_GET['id'];
+        }
+    }
+    foreach (Wo_GetPosts($postsData) as $wo['story']) {
+        $html .= Wo_LoadPage('lightbox/content');
+    }
+    $data = array(
+        'status' => 200,
+        'html' => $html
+    );
+    header("Content-type: application/json");
+    echo json_encode($data);
+    exit();
+}
+
 if ($wo['loggedin'] == false) {
     exit("Please login or signup to continue.");
 }
@@ -1165,16 +1364,14 @@ if ($f == "update_general_settings") {
                         $age_data = $_POST['age_year'] . '-' . $_POST['age_month'] . '-' . $_POST['age_day'];
                     }
                 }
-                if ($wo['config']['emailValidation'] == 1 && $wo['config']['sms_or_email'] == "sms") {
-                    if ($_POST['phone_number'] != $Userdata['phone_number']) {
-                        $is_exist = Wo_IsPhoneExist($_POST['phone_number']);
-                        if (in_array(true, $is_exist)) {
-                            $errors[] = $error_icon . $wo['lang']['phonenumber_exists'];
-                        }
+                if ($_POST['phone_number'] != $Userdata['phone_number']) {
+                    $is_exist = Wo_IsPhoneExist($_POST['phone_number']);
+                    if (in_array(true, $is_exist)) {
+                        $errors[] = $error_icon . $wo['lang']['phonenumber_exists'];
                     }
-                    if (!filter_var($_POST['phone_number'], FILTER_SANITIZE_NUMBER_INT)) {
-                        $errors[] = $error_icon . $wo['lang']['phone_invalid_characters'];
-                    }
+                }
+                if (!filter_var($_POST['phone_number'], FILTER_SANITIZE_NUMBER_INT)) {
+                    $errors[] = $error_icon . $wo['lang']['phone_invalid_characters'];
                 }
                 $active = $Userdata['active'];
                 if (!empty($_POST['active'])) {
@@ -1271,12 +1468,8 @@ if ($f == "update_general_settings") {
                     if ($Userdata['username'] != $_POST['username']) {
                         $unverify = true;
                     }
-                    if ($wo['config']['emailValidation'] == 1) {
-                        if ($wo['config']['sms_or_email'] == "sms") {
-                            if (!empty($_POST['phone_number'])) {
-                                $Update_data['phone_number'] = Wo_Secure($_POST['phone_number']);
-                            }
-                        }
+                    if (!empty($_POST['phone_number'])) {
+                        $Update_data['phone_number'] = Wo_Secure($_POST['phone_number']);
                     }
                     // var_dump(Wo_UpdateUserData($_POST['user_id'], $Update_data,$unverify));
                     // exit();
@@ -1539,6 +1732,11 @@ if ($f == "update_email_settings") {
             'e_profile_wall_post' => $e_profile_wall_post,
             'e_sentme_msg' => $e_sentme_msg
         );
+        if (!in_array(1, $Update_data)) {
+            $Update_data['emailNotification'] = 0;
+        } else {
+            $Update_data['emailNotification'] = 1;
+        }
         if (Wo_UpdateUserData($_POST['user_id'], $Update_data)) {
             $data = array(
                 'status' => 200,
@@ -2910,12 +3108,12 @@ if ($f == 'admin_setting' AND (Wo_IsAdmin() || Wo_IsModerator())) {
                 "verify_peer_name" => false
             )
         );
-        $data['android_status']        = 1;
-        $data['windows_status']        = 1;
-        $data['android_native_status'] = 1;
+        $data['android_status']        = 0;
+        $data['windows_status']        = 0;
+        $data['android_native_status'] = 0;
         if (!empty($_POST['android_purchase_code'])) {
             $android_code = Wo_Secure($_POST['android_purchase_code']);
-            $file         = file_get_contents("http://nulledfree.com/access_token.php?code={$android_code}&type=android", false, stream_context_create($arrContextOptions));
+            $file         = file_get_contents("http://www.wowonder.com/access_token.php?code={$android_code}&type=android", false, stream_context_create($arrContextOptions));
             $check        = json_decode($file, true);
             if (!empty($check['status'])) {
                 if ($check['status'] == 'SUCCESS') {
@@ -3711,7 +3909,7 @@ if ($f == 'admin_setting' AND (Wo_IsAdmin() || Wo_IsModerator())) {
             $data['status'] = 200;
         } else {
             $data['status'] = 400;
-            $data['error']  = $mail->ErrorInfo;
+            $data['error']  = "Error found while sending the email, the information you provided are not correct, please test the email settings on your local device and make sure they are correct. ";
         }
         header("Content-type: application/json");
         echo json_encode($data);
@@ -7340,197 +7538,8 @@ if ($f == 'popover') {
     echo json_encode($data);
     exit();
 }
-if ($f == 'open_lightbox') {
-    $html = '';
-    if (!empty($_GET['post_id'])) {
-        $wo['story'] = Wo_PostData($_GET['post_id']);
-        if (!empty($wo['story'])) {
-            $html = Wo_LoadPage('lightbox/content');
-        }
-    }
-    $data = array(
-        'status' => 200,
-        'html' => $html
-    );
-    header("Content-type: application/json");
-    echo json_encode($data);
-    exit();
-}
-if ($f == 'open_album_lightbox') {
-    $html = '';
-    if (!empty($_GET['image_id'])) {
-        $data_image = array(
-            'id' => (int) $_GET['image_id']
-        );
-        if ($_GET['type'] == 'album') {
-            $wo['image'] = Wo_AlbumImageData($data_image);
-            if (!empty($wo['image'])) {
-                $html = Wo_LoadPage('lightbox/album-content');
-            }
-        } else {
-            $wo['image'] = Wo_ProductImageData($data_image);
-            if (!empty($wo['image'])) {
-                $html = Wo_LoadPage('lightbox/product-content');
-            }
-        }
-    }
-    $data = array(
-        'status' => 200,
-        'html' => $html
-    );
-    header("Content-type: application/json");
-    echo json_encode($data);
-    exit();
-}
-if ($f == 'get_next_album_image') {
-    $html = '';
-    if (!empty($_GET['after_image_id'])) {
-        $data_image  = array(
-            'post_id' => (int) $_GET['post_id'],
-            'after_image_id' => (int) $_GET['after_image_id']
-        );
-        $wo['image'] = Wo_AlbumImageData($data_image);
-        if (!empty($wo['image'])) {
-            $html = Wo_LoadPage('lightbox/album-content');
-        }
-        $data = array(
-            'status' => 200,
-            'html' => $html
-        );
-    }
-    header("Content-type: application/json");
-    echo json_encode($data);
-    exit();
-}
-if ($f == 'get_previous_album_image') {
-    $html = '';
-    if (!empty($_GET['before_image_id'])) {
-        $data_image  = array(
-            'post_id' => $_GET['post_id'],
-            'before_image_id' => $_GET['before_image_id']
-        );
-        $wo['image'] = Wo_AlbumImageData($data_image);
-        if (!empty($wo['image'])) {
-            $html = Wo_LoadPage('lightbox/album-content');
-        }
-        $data = array(
-            'status' => 200,
-            'html' => $html
-        );
-    }
-    header("Content-type: application/json");
-    echo json_encode($data);
-    exit();
-}
-if ($f == 'get_next_product_image') {
-    $html = '';
-    if (!empty($_GET['after_image_id'])) {
-        $data_image  = array(
-            'product_id' => $_GET['product_id'],
-            'after_image_id' => $_GET['after_image_id']
-        );
-        $wo['image'] = Wo_ProductImageData($data_image);
-        if (!empty($wo['image'])) {
-            $html = Wo_LoadPage('lightbox/product-content');
-        }
-        $data = array(
-            'status' => 200,
-            'html' => $html
-        );
-    }
-    header("Content-type: application/json");
-    echo json_encode($data);
-    exit();
-}
-if ($f == 'get_previous_product_image') {
-    $html = '';
-    if (!empty($_GET['before_image_id'])) {
-        $data_image  = array(
-            'product_id' => $_GET['product_id'],
-            'before_image_id' => $_GET['before_image_id']
-        );
-        $wo['image'] = Wo_ProductImageData($data_image);
-        if (!empty($wo['image'])) {
-            $html = Wo_LoadPage('lightbox/product-content');
-        }
-        $data = array(
-            'status' => 200,
-            'html' => $html
-        );
-    }
-    header("Content-type: application/json");
-    echo json_encode($data);
-    exit();
-}
-if ($f == 'open_multilightbox') {
-    $html = '';
-    if (!empty($_POST['url'])) {
-        $wo['lighbox']['url'] = $_POST['url'];
-        $html                 = Wo_LoadPage('lightbox/content-multi');
-    }
-    $data = array(
-        'status' => 200,
-        'html' => $html
-    );
-    header("Content-type: application/json");
-    echo json_encode($data);
-    exit();
-}
-if ($f == 'get_next_image') {
-    $html      = '';
-    $postsData = array(
-        'limit' => 1,
-        'filter_by' => 'photos',
-        'after_post_id' => Wo_Secure($_GET['post_id'])
-    );
-    if (!empty($_GET['type']) && !empty($_GET['id'])) {
-        if ($_GET['type'] == 'profile') {
-            $postsData['publisher_id'] = $_GET['id'];
-        } else if ($_GET['type'] == 'page') {
-            $postsData['page_id'] = $_GET['id'];
-        } else if ($_GET['type'] == 'group') {
-            $postsData['group_id'] = $_GET['id'];
-        }
-    }
-    foreach (Wo_GetPosts($postsData) as $wo['story']) {
-        $html .= Wo_LoadPage('lightbox/content');
-    }
-    $data = array(
-        'status' => 200,
-        'html' => $html
-    );
-    header("Content-type: application/json");
-    echo json_encode($data);
-    exit();
-}
-if ($f == 'get_previous_image') {
-    $html      = '';
-    $postsData = array(
-        'limit' => 1,
-        'filter_by' => 'photos',
-        'order' => 'ASC',
-        'before_post_id' => Wo_Secure($_GET['post_id'])
-    );
-    if (!empty($_GET['type']) && !empty($_GET['id'])) {
-        if ($_GET['type'] == 'profile') {
-            $postsData['publisher_id'] = $_GET['id'];
-        } else if ($_GET['type'] == 'page') {
-            $postsData['page_id'] = $_GET['id'];
-        } else if ($_GET['type'] == 'group') {
-            $postsData['group_id'] = $_GET['id'];
-        }
-    }
-    foreach (Wo_GetPosts($postsData) as $wo['story']) {
-        $html .= Wo_LoadPage('lightbox/content');
-    }
-    $data = array(
-        'status' => 200,
-        'html' => $html
-    );
-    header("Content-type: application/json");
-    echo json_encode($data);
-    exit();
-}
+
+
 if ($f == 'groups') {
     if ($s == 'create_group') {
         if (empty($_POST['group_name']) || empty($_POST['group_title']) || empty(Wo_Secure($_POST['group_title'])) || Wo_CheckSession($hash_id) === false) {
@@ -8311,6 +8320,8 @@ if ($f == 'wallet') {
         if (isset($_GET['success']) && $_GET['success'] == 1 && isset($_GET['paymentId']) && isset($_GET['PayerID'])) {
             if (!is_array(Wo_GetWalletReplenishingDone($_GET['paymentId'], $_GET['PayerID']))) {
                 if (Wo_ReplenishingUserBalance($_GET['amount'])) {
+                    $_GET['amount'] = Wo_Secure($_GET['amount']);
+                    $create_payment_log = mysqli_query($sqlConnect, "INSERT INTO " . T_PAYMENT_TRANSACTIONS . " (`userid`, `kind`, `amount`, `notes`) VALUES ('" . $wo['user']['id'] . "', 'WALLET', '" . $_GET['amount'] . "', 'PayPal')");
                     $_SESSION['replenished_amount'] = $_GET['amount'];
                     header("Location: " . Wo_SeoLink('index.php?link1=wallet'));
                     exit();
@@ -8539,9 +8550,11 @@ if ($f == 'stripe_payment_wallet') {
         $customer = \Stripe\Customer::create(array(
             'source' => $token
         ));
+        $_POST['amount'] = Wo_Secure($_POST['amount']);
+        $final_amount = $_POST['amount'] * 100;
         $charge   = \Stripe\Charge::create(array(
             'customer' => $customer->id,
-            'amount' => $_POST['amount'] * 100,
+            'amount' => $final_amount,
             'currency' => 'usd'
         ));
         if ($charge) {
@@ -10857,13 +10870,13 @@ if ($f == "update-event") {
         }
         if (empty($error) && isset($_GET['eid']) && is_numeric($_GET['eid'])) {
             $registration_data = array(
-                'name' => Wo_Secure($_POST['event-name']),
-                'location' => Wo_Secure($_POST['event-locat']),
-                'description' => Wo_Secure($_POST['event-description']),
-                'start_date' => Wo_Secure($_POST['event-start-date']),
-                'start_time' => Wo_Secure($_POST['event-start-time']),
-                'end_date' => Wo_Secure($_POST['event-end-date']),
-                'end_time' => Wo_Secure($_POST['event-end-time'])
+                'name' => $_POST['event-name'],
+                'location' => $_POST['event-locat'],
+                'description' => $_POST['event-description'],
+                'start_date' => $_POST['event-start-date'],
+                'start_time' => $_POST['event-start-time'],
+                'end_date' => $_POST['event-end-date'],
+                'end_time' => $_POST['event-end-time']
             );
             $result            = Wo_UpdateEvent($_GET['eid'], $registration_data);
             if ($result) {
