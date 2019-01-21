@@ -884,6 +884,9 @@ function Wo_DeleteUser($user_id) {
     $query_one .= mysqli_query($sqlConnect, "DELETE FROM " . T_PAGE_ADMINS . " WHERE `user_id` = '{$user_id}'");
     $query_one .= mysqli_query($sqlConnect, "DELETE FROM " . T_GROUP_ADMINS . " WHERE `user_id` = '{$user_id}'");
     $query_one .= mysqli_query($sqlConnect, "DELETE FROM " . T_REACTIONS . " WHERE `user_id` = '{$user_id}'");
+    $query_ones = mysqli_query($sqlConnect, "DELETE FROM " . T_POKES . " WHERE `received_user_id` = '{$user_id}' OR `send_user_id` = '{$user_id}'");
+    $query_ones = mysqli_query($sqlConnect, "DELETE FROM " . T_USERGIFTS . " WHERE `from` = '{$user_id}' OR `to` = '{$user_id}'");
+    $query_ones = mysqli_query($sqlConnect, "DELETE FROM " . T_STORY_SEEN . " WHERE `user_id` = '{$user_id}'");
     if ($query_one) {
         $send_message_data       = array(
             'from_email' => $wo['config']['siteEmail'],
@@ -1092,7 +1095,7 @@ function Wo_UploadImage($file, $name, $type, $type_file, $user_id = 0, $placemen
                         'postFile' => Wo_Secure($last_file, 0),
                         'time' => time(),
                         'postType' => Wo_Secure('profile_cover_picture'),
-                        'postPrivacy' => '0'
+                        'postPrivacy' => '2'
                     ));
                 }
             }
@@ -1139,7 +1142,7 @@ function Wo_UploadImage($file, $name, $type, $type_file, $user_id = 0, $placemen
                             'postFile' => Wo_Secure($last_file, 0),
                             'time' => time(),
                             'postType' => Wo_Secure('profile_picture'),
-                            'postPrivacy' => '0'
+                            'postPrivacy' => '2'
                         ));
                         Wo_Resize_Crop_Image($wo['profile_picture_width_crop'], $wo['profile_picture_height_crop'], $filename, $filename, $wo['profile_picture_image_quality']);
                         $upload_s3 = Wo_UploadToS3($filename);
@@ -1316,7 +1319,7 @@ function Wo_FeaturedUsers($limit = '', $type = '') {
     }
     $data           = array();
     $logged_user_id = $wo['user']['user_id'];
-    $query_one      = " SELECT `user_id` FROM " . T_USERS . " WHERE `active` = '1' AND `user_id` NOT IN (SELECT `blocked` FROM " . T_BLOCKS . " WHERE `blocker` = '{$logged_user_id}') AND `user_id` NOT IN (SELECT `blocker` FROM " . T_BLOCKS . " WHERE `blocked` = '{$logged_user_id}') AND `is_pro` = '1' ORDER BY `pro_time` DESC LIMIT {$limit}";
+    $query_one      = " SELECT `user_id` FROM " . T_USERS . " WHERE `active` = '1' AND `user_id` NOT IN (SELECT `blocked` FROM " . T_BLOCKS . " WHERE `blocker` = '{$logged_user_id}') AND `user_id` NOT IN (SELECT `blocker` FROM " . T_BLOCKS . " WHERE `blocked` = '{$logged_user_id}') AND `is_pro` = '1' ORDER BY RAND() LIMIT {$limit}";
     $sql            = mysqli_query($sqlConnect, $query_one);
     $mysql_count    = mysqli_num_rows($sql);
     if ($mysql_count > 7) {
@@ -2410,7 +2413,7 @@ function Wo_GetRecentSerachs() {
     return $data;
 }
 function Wo_GetSearchFilter($result, $limit = 30, $offset = 0) {
-    global $wo, $sqlConnect;
+    global $wo, $sqlConnect,$db;
     $data = array();
     $profiledata = array();
     $time = time() - 60;
@@ -2418,16 +2421,27 @@ function Wo_GetSearchFilter($result, $limit = 30, $offset = 0) {
         return array();
     }
 
-    $profile_search_sql = "SELECT * FROM `wo_userfields` WHERE ";
+    $custom_query = '';
+
+    $profile_search_sql = "AND (SELECT COUNT(*) FROM ".T_USERS_FIELDS." WHERE ";
     $profile_search = array();
     foreach( $_GET as $key => $val ){
         if( substr( $key, 0, 4 ) == 'fid_' && !empty( $val ) ){
             $profile_search[ $key ] = Wo_Secure( $val );
-            $profile_search_sql .= "`" . Wo_Secure( $key ) . "` LIKE '%" . Wo_Secure( $val ) . "%' AND";
+            $custom_type = $db->where('name',substr( $key, 4))->getOne(T_FIELDS);
+            if ($custom_type->type == 'textbox' || $custom_type->type == 'textarea') {
+                $profile_search_sql .= "`" . Wo_Secure( $key ) . "` LIKE '%" . Wo_Secure( $val ) . "%' AND";
+            }
+            else{
+                $profile_search_sql .= "`" . Wo_Secure( $key ) . "` = '" . Wo_Secure( $val ) . "' AND";
+            }
         }
     }
     if( substr( $profile_search_sql, -3 ) == "AND" ){
         $profile_search_sql = substr( $profile_search_sql, 0, -3 );
+    }
+    if( !empty( $profile_search ) ){
+        $custom_query = $profile_search_sql.' AND '.T_USERS.'.user_id = user_id) > 0 ';
     }
 
     $query = '';
@@ -2457,7 +2471,7 @@ function Wo_GetSearchFilter($result, $limit = 30, $offset = 0) {
     if (!empty($result['image'])) {
         $result['image'] = Wo_Secure($result['image']);
     }
-    $query = " SELECT `user_id` FROM " . T_USERS . " WHERE (`username` LIKE '%{$query}%' OR CONCAT( `first_name`,  ' ', `last_name` ) LIKE  '%{$query}%')";
+    $query = " SELECT `user_id` FROM " . T_USERS . " WHERE (`username` LIKE '%{$query}%' OR CONCAT( `first_name`,  ' ', `last_name` ) LIKE  '%{$query}%') {$custom_query}";
     if ($wo['loggedin'] == true) {
         $logged_user_id = Wo_Secure($wo['user']['user_id']);
         $query .= " AND `user_id` NOT IN (SELECT `blocked` FROM " . T_BLOCKS . " WHERE `blocker` = '{$logged_user_id}') AND `user_id` NOT IN (SELECT `blocker` FROM " . T_BLOCKS . " WHERE `blocked` = '{$logged_user_id}')";
@@ -2521,18 +2535,17 @@ function Wo_GetSearchFilter($result, $limit = 30, $offset = 0) {
         $limit = Wo_Secure($limit);
         $query .= " ORDER BY `user_id` DESC LIMIT {$limit}";
     }
-
     $sql_query_one = mysqli_query($sqlConnect, $query);
     while ($fetched_data = mysqli_fetch_assoc($sql_query_one)) {
         $data[$fetched_data['user_id']] = Wo_UserData($fetched_data['user_id']);
     }
 
-    if( !empty( $profile_search ) ){
-        $profile_sql_query_one = mysqli_query($sqlConnect, $profile_search_sql);
-        while ($profile_fetched_data = mysqli_fetch_assoc($profile_sql_query_one)) {
-            $data[$fetched_data['user_id']] = Wo_UserData($profile_fetched_data['user_id']);
-        }
-    }
+    // if( !empty( $profile_search ) ){
+    //     $profile_sql_query_one = mysqli_query($sqlConnect, $profile_search_sql);
+    //     while ($profile_fetched_data = mysqli_fetch_assoc($profile_sql_query_one)) {
+    //         $data[$fetched_data['user_id']] = Wo_UserData($profile_fetched_data['user_id']);
+    //     }
+    // }
 
 
     return $data;
@@ -5326,6 +5339,8 @@ function Wo_GetReactedTextIcon($object_id, $user_id, $col = "post") {
         $sql_fetch_one = mysqli_fetch_assoc($sql_query_one);
         $reaction_icon = "";
         $reaction_color = "";
+        if (!file_exists('./themes/' . $wo['config']['theme'] . '/reaction/like-sm.png')) {
+        
         switch ($sql_fetch_one['reaction']) {
             case 'Like':
                 $reaction_icon = '<div class="inline_post_emoji no_anim"><div class="emoji emoji--like"><div class="emoji__hand"><div class="emoji__thumb"></div></div></div></div>';
@@ -5351,6 +5366,36 @@ function Wo_GetReactedTextIcon($object_id, $user_id, $col = "post") {
                 $reaction_icon = '<div class="inline_post_emoji no_anim"><div class="emoji emoji--angry"><div class="emoji__face"><div class="emoji__eyebrows"></div><div class="emoji__eyes"></div><div class="emoji__mouth"></div></div></div></div>';
                 $reaction_color = '#f7806c';
                 break;
+        }
+        }
+        else{
+        
+            switch ($sql_fetch_one['reaction']) {
+                case 'Like':
+                    $reaction_icon = '<div class="inline_post_emoji"><img class="" src="' . $wo['config']['theme_url'] . '/reaction/like-sm.png" alt="' . $wo['lang']['like'] . '"></div>';
+                    $reaction_color = '#1da1f2';
+                    break;
+                case 'Love':
+                    $reaction_icon = '<div class="inline_post_emoji"><img class="" src="' . $wo['config']['theme_url'] . '/reaction/love-sm.png" alt="' . $wo['lang']['love'] . '"></div>';
+                    $reaction_color = '#f25268';
+                    break;
+                case 'HaHa':
+                    $reaction_icon = '<div class="inline_post_emoji"><img class="" src="' . $wo['config']['theme_url'] . '/reaction/haha-sm.png" alt="' . $wo['lang']['haha'] . '"></div>';
+                    $reaction_color = '#f3b715';
+                    break;
+                case 'Wow':
+                    $reaction_icon = '<div class="inline_post_emoji"><img class="" src="' . $wo['config']['theme_url'] . '/reaction/wow-sm.png" alt="' . $wo['lang']['wow'] . '"></div>';
+                    $reaction_color = '#f3b715';
+                    break;
+                case 'Sad':
+                    $reaction_icon = '<div class="inline_post_emoji"><img class="" src="' . $wo['config']['theme_url'] . '/reaction/sad-sm.png" alt="' . $wo['lang']['sad'] . '"></div>';
+                    $reaction_color = '#f3b715';
+                    break;
+                case 'Angry':
+                    $reaction_icon = '<div class="inline_post_emoji"><img class="" src="' . $wo['config']['theme_url'] . '/reaction/angry-sm.png" alt="' . $wo['lang']['angry'] . '"></div>';
+                    $reaction_color = '#f7806c';
+                    break;
+            }
         }
 
         return '<span class="status-reaction-'.$object_id.' active-like">' . $reaction_icon . '<span style="color: '. $reaction_color .';"> '.$wo['lang'][strtolower($sql_fetch_one['reaction'])].'</span></span>';
@@ -5390,6 +5435,8 @@ function Wo_GetPostReactions($object_id, $col = "post") {
 
    if( !empty($reactions) ){
        foreach( $reactions as $key => $val ){
+        if (!file_exists('./themes/' . $wo['config']['theme'] . '/reaction/like-sm.png')) {
+           
            switch (strtolower($key)) {
                case 'like':
                    $reactions_html .= "<span class=\"how_reacted like-btn-".strtolower($key)."\" id=\"_".$col.$object_id."\" onclick=\"Wo_OpenPostReactedUsers(".$object_id.",'".strtolower($key)."');\"><div class='inline_post_count_emoji no_anim'><div class='emoji emoji--like'><div class='emoji__hand'><div class='emoji__thumb'></div></div></div></div></span>";
@@ -5410,6 +5457,31 @@ function Wo_GetPostReactions($object_id, $col = "post") {
                    $reactions_html .= "<span class=\"how_reacted like-btn-".strtolower($key)."\" id=\"_".$col.$object_id."\" onclick=\"Wo_OpenPostReactedUsers(".$object_id.",'".strtolower($key)."');\"><div class='inline_post_count_emoji no_anim'><div class='emoji emoji--angry'><div class='emoji__face'><div class='emoji__eyebrows'></div><div class='emoji__eyes'></div><div class='emoji__mouth'></div></div></div></div></span>";
                    break;
            }
+        }
+        else{
+
+           
+           switch (strtolower($key)) {
+               case 'like':
+                   $reactions_html .= "<span class=\"how_reacted like-btn-".strtolower($key)."\" id=\"_".$col.$object_id."\" onclick=\"Wo_OpenPostReactedUsers(".$object_id.",'".strtolower($key)."');\"><div class='inline_post_count_emoji'><img src='{$wo['config']['theme_url']}/reaction/like-sm.png' alt=\"" . $wo['lang']['like'] . "\"></div></span>";
+                   break;
+               case 'love':
+                   $reactions_html .= "<span class=\"how_reacted like-btn-".strtolower($key)."\" id=\"_".$col.$object_id."\" onclick=\"Wo_OpenPostReactedUsers(".$object_id.",'".strtolower($key)."');\"><div class='inline_post_count_emoji'><img src='{$wo['config']['theme_url']}/reaction/love-sm.png' alt=\"" . $wo['lang']['love'] . "\"></div></span>";
+                   break;
+               case 'haha':
+                  $reactions_html .= "<span class=\"how_reacted like-btn-".strtolower($key)."\" id=\"_".$col.$object_id."\" onclick=\"Wo_OpenPostReactedUsers(".$object_id.",'".strtolower($key)."');\"><div class='inline_post_count_emoji'><img src='{$wo['config']['theme_url']}/reaction/haha-sm.png' alt=\"" . $wo['lang']['haha'] . "\"></div></span>";
+                   break;
+               case 'wow':
+                   $reactions_html .= "<span class=\"how_reacted like-btn-".strtolower($key)."\" id=\"_".$col.$object_id."\" onclick=\"Wo_OpenPostReactedUsers(".$object_id.",'".strtolower($key)."');\"><div class='inline_post_count_emoji'><img src='{$wo['config']['theme_url']}/reaction/wow-sm.png' alt=\"" . $wo['lang']['wow'] . "\"></div></span>";
+                   break;
+               case 'sad':
+                   $reactions_html .= "<span class=\"how_reacted like-btn-".strtolower($key)."\" id=\"_".$col.$object_id."\" onclick=\"Wo_OpenPostReactedUsers(".$object_id.",'".strtolower($key)."');\"><div class='inline_post_count_emoji'><img src='{$wo['config']['theme_url']}/reaction/sad-sm.png' alt=\"" . $wo['lang']['sad'] . "\"></div></span>";
+                   break;
+               case 'angry':
+                   $reactions_html .= "<span class=\"how_reacted like-btn-".strtolower($key)."\" id=\"_".$col.$object_id."\" onclick=\"Wo_OpenPostReactedUsers(".$object_id.",'".strtolower($key)."');\"><div class='inline_post_count_emoji'><img src='{$wo['config']['theme_url']}/reaction/angry-sm.png' alt=\"" . $wo['lang']['angry'] . "\"></div></span>";
+                   break;
+           }
+        }
            //$reactions_html .= "<span class=\"like-btn-".strtolower($key)."\" id=\"_".$col.$object_id."\" onclick=\"Wo_OpenPostReactedUsers(".$object_id.",'".strtolower($key)."');\"></span>";
        }
        return $reactions_html . "<span class=\"how_many_reacts\">".$reactions_count."</span>";
@@ -6366,7 +6438,11 @@ function Wo_GetChatColor($user_id = 0, $conversation_user_id = 0) {
     $conversation_user_id = Wo_Secure($conversation_user_id);
     $sql_queryset         = mysqli_query($sqlConnect, "SELECT color FROM " . T_U_CHATS . " WHERE `user_id` = '$user_id' AND `conversation_user_id` = '$conversation_user_id' LIMIT 1");
     $fetched_data         = mysqli_fetch_assoc($sql_queryset);
-    return (!empty($fetched_data['color'])) ? $fetched_data['color'] : $wo['config']['btn_background_color'];
+    $color = (!empty($fetched_data['color'])) ? $fetched_data['color'] : $wo['config']['btn_background_color'];
+    if (file_exists('./themes/' . $wo['config']['theme'] . '/reaction/like-sm.png') && empty($fetched_data['color'])) {
+        $color = '';
+    }
+    return $color;
 }
 function Wo_UpdateChatColor($user_id = 0, $conversation_user_id = 0, $color = '') {
     global $sqlConnect, $wo;
@@ -6435,3 +6511,21 @@ function Wo_ProfileCompletion(){
     return $data;
 }
 
+function Wo_GetLastAttachments($user_id) {
+    global $wo, $sqlConnect;
+    if ($wo['loggedin'] == false) {
+        return false;
+    }
+    if (!is_numeric($user_id) or $user_id < 1) {
+        return false;
+    }
+    $user_id = Wo_Secure($user_id);
+    $logged_user_id = Wo_Secure($wo['user']['user_id']);
+    $query = " SELECT * FROM " . T_MESSAGES . " WHERE ((`from_id` = {$user_id} AND (`to_id` = {$logged_user_id} AND `deleted_two` = '0') OR (`from_id` = {$logged_user_id} AND `to_id` = {$user_id} AND `deleted_one` = '0')) AND (`from_id` NOT IN (SELECT `blocked` FROM " . T_BLOCKS . " WHERE `blocker` = '{$user_id}') AND `from_id` NOT IN (SELECT `blocker` FROM " . T_BLOCKS . " WHERE `blocked` = '{$user_id}') AND ( mediaFileName like '%jpg' OR mediaFileName like '%PNG' OR mediaFileName like '%jpeg'))) ORDER BY id DESC limit 6";
+    $sql_query = mysqli_query($sqlConnect, $query);
+    $data = array();
+    while ($fetched_data = mysqli_fetch_assoc($sql_query)) {
+        $data[] = Wo_GetMedia($fetched_data['media']);
+    }
+    return $data;
+}

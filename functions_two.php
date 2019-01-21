@@ -689,9 +689,9 @@ function Wa_GetTrendingHashs($type = 'latest', $limit = 5) {
         $limit = 5;
     }
     if ($type == "latest") {
-        $query = "SELECT * FROM " . T_HASHTAGS . " WHERE `expire` >= CURRENT_DATE()  ORDER BY `last_trend_time` DESC LIMIT {$limit}";
+        $query = "SELECT * FROM " . T_HASHTAGS . " WHERE `expire` >= CURRENT_DATE() AND `trend_use_num` > '0'  ORDER BY `last_trend_time` DESC LIMIT {$limit}";
     } elseif ($type == "popular") {
-        $query = "SELECT * FROM " . T_HASHTAGS . " WHERE `expire` >= CURRENT_DATE()  ORDER BY `trend_use_num` DESC LIMIT {$limit}";
+        $query = "SELECT * FROM " . T_HASHTAGS . " WHERE `expire` >= CURRENT_DATE() AND `trend_use_num` > '0'  ORDER BY `trend_use_num` DESC LIMIT {$limit}";
     }
     $sql_query   = mysqli_query($sqlConnect, $query);
     $sql_numrows = mysqli_num_rows($sql_query);
@@ -4128,57 +4128,59 @@ function Wo_CanSenEmails() {
     return true;
 }
 function Wo_SendMessageFromDB() {
-    global $wo, $sqlConnect, $mail;
-    if ($wo['loggedin'] == false) {
-        return false;
-    }
-    $data = array();
-    if (Wo_CanSenEmails() === false) {
-        return false;
-    }
-    $user_id   = Wo_Secure($wo['user']['user_id']);
-    $query_one = " SELECT * FROM " . T_EMAILS . " WHERE `user_id` = {$user_id} ORDER BY `id` DESC";
-    $sql       = mysqli_query($sqlConnect, $query_one);
-    if (mysqli_num_rows($sql) < 1) {
-        return false;
-    }
-    if ($wo['config']['smtp_or_mail'] == 'mail') {
-        $mail->IsMail();
-    } else if ($wo['config']['smtp_or_mail'] == 'smtp') {
-        $mail->isSMTP();
-        $mail->Host          = $wo['config']['smtp_host']; // Specify main and backup SMTP servers
-        $mail->SMTPAuth      = true;
-        $mail->SMTPKeepAlive = true;
-        $mail->Username      = $wo['config']['smtp_username']; // SMTP username
-        $mail->Password      = $wo['config']['smtp_password']; // SMTP password
-        $mail->SMTPSecure    = $wo['config']['smtp_encryption']; // Enable TLS encryption, `ssl` also accepted
-        $mail->Port          = $wo['config']['smtp_port'];
-        $mail->SMTPOptions   = array(
-            'ssl' => array(
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true
-            )
-        );
-    } else {
-        return false;
-    }
-    $mail->setFrom($wo['config']['siteEmail'], $wo['config']['siteName']);
-    $send          = false;
-    $mail->CharSet = 'utf-8';
-    while ($fetched_data = mysqli_fetch_assoc($sql)) {
-        $mail->addAddress($fetched_data['email_to']);
-        $mail->Subject = $fetched_data['subject'];
-        $mail->MsgHTML($fetched_data['message']);
-        $mail->IsHTML(true);
-        $send = $mail->send();
-        $mail->ClearAddresses();
-    }
-    $query_one_  = "DELETE FROM " . T_EMAILS . " WHERE `user_id` = {$user_id}";
-    $sql_        = mysqli_query($sqlConnect, $query_one_);
-    $query_one__ = "UPDATE " . T_USERS . " SET `last_email_sent` = " . time() . " WHERE `user_id` = {$user_id}";
-    $sql__       = mysqli_query($sqlConnect, $query_one__);
-    return $send;
+   global $wo, $sqlConnect;
+   include_once('assets/libraries/PHPMailer-Master/vendor/autoload.php');
+   $mail = new PHPMailer\PHPMailer\PHPMailer;
+   if ($wo['loggedin'] == false) {
+       return false;
+   }
+   $data = array();
+   if (Wo_CanSenEmails() === false) {
+       return false;
+   }
+   $user_id   = Wo_Secure($wo['user']['user_id']);
+   $query_one = " SELECT * FROM " . T_EMAILS . " WHERE `user_id` = {$user_id} ORDER BY `id` DESC";
+   $sql       = mysqli_query($sqlConnect, $query_one);
+   if (mysqli_num_rows($sql) < 1) {
+       return false;
+   }
+   if ($wo['config']['smtp_or_mail'] == 'mail') {
+       $mail->IsMail();
+   } else if ($wo['config']['smtp_or_mail'] == 'smtp') {
+       $mail->isSMTP();
+       $mail->Host          = $wo['config']['smtp_host']; // Specify main and backup SMTP servers
+       $mail->SMTPAuth      = true;
+       $mail->SMTPKeepAlive = true;
+       $mail->Username      = $wo['config']['smtp_username']; // SMTP username
+       $mail->Password      = $wo['config']['smtp_password']; // SMTP password
+       $mail->SMTPSecure    = $wo['config']['smtp_encryption']; // Enable TLS encryption, `ssl` also accepted
+       $mail->Port          = $wo['config']['smtp_port'];
+       $mail->SMTPOptions   = array(
+           'ssl' => array(
+               'verify_peer' => false,
+               'verify_peer_name' => false,
+               'allow_self_signed' => true
+           )
+       );
+   } else {
+       return false;
+   }
+   $mail->setFrom($wo['config']['siteEmail'], $wo['config']['siteName']);
+   $send          = false;
+   $mail->CharSet = 'utf-8';
+   while ($fetched_data = mysqli_fetch_assoc($sql)) {
+       $mail->addAddress($fetched_data['email_to']);
+       $mail->Subject = $fetched_data['subject'];
+       $mail->MsgHTML($fetched_data['message']);
+       $mail->IsHTML(true);
+       $send = $mail->send();
+       $mail->ClearAddresses();
+   }
+   $query_one_  = "DELETE FROM " . T_EMAILS . " WHERE `user_id` = {$user_id}";
+   $sql_        = mysqli_query($sqlConnect, $query_one_);
+   $query_one__ = "UPDATE " . T_USERS . " SET `last_email_sent` = " . time() . " WHERE `user_id` = {$user_id}";
+   $sql__       = mysqli_query($sqlConnect, $query_one__);
+   return $send;
 }
 function Wo_AddPostVideoView($post_id = false) {
     global $sqlConnect, $wo;
@@ -5455,5 +5457,17 @@ function Wo_DeleteProMemebership() {
         }
     }
     return true;
+}
+function Wo_GetPopularGames($limit = 10, $after = 0) {
+    global $wo, $sqlConnect;
+
+    $data      = array();
+    $sql = mysqli_query($sqlConnect, "SELECT game_id, COUNT(`user_id`) AS count FROM " . T_GAMES_PLAYERS . " WHERE `active` = '1' GROUP BY `game_id` ORDER BY count DESC LIMIT ".$limit);
+    while ($fetched_data = mysqli_fetch_assoc($sql)) {
+        $fetched_data            = Wo_GameData($fetched_data['game_id']);
+        $fetched_data['players'] = Wo_CountGamePlayers($fetched_data['id']);
+        $data[]                  = $fetched_data;
+    }
+    return $data;
 }
 ?>

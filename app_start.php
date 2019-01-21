@@ -161,7 +161,7 @@ $wo['site_pages'] = array(
     'authorize'
 );
 
-$wo['script_version']  = '2.0.3.1';
+$wo['script_version']  = '2.1';
 $http_header           = 'http://';
 if (!empty($_SERVER['HTTPS'])) {
     $http_header = 'https://';
@@ -334,8 +334,12 @@ if (!isset($_COOKIE['_us'])) {
 
 if (isset($_COOKIE['_us']) && $_COOKIE['_us'] < time() || 1) {
     setcookie('_us', time() + (60 * 60 * 24) , time() + (10 * 365 * 24 * 60 * 60));
-    @mysqli_query($sqlConnect, "DELETE FROM " . T_USER_STORY_MEDIA . " WHERE `expire` < CURDATE()");
-    @mysqli_query($sqlConnect, "DELETE FROM " . T_USER_STORY . " WHERE `expire` < CURDATE()");
+    $expired_stories = $db->where('expire',time(),'<')->get(T_USER_STORY);
+    foreach ($expired_stories as $key => $value) {
+        $db->where('story_id',$value->id)->delete(T_STORY_SEEN);
+    }
+    @mysqli_query($sqlConnect, "DELETE FROM " . T_USER_STORY_MEDIA . " WHERE `expire` < ".time());
+    @mysqli_query($sqlConnect, "DELETE FROM " . T_USER_STORY . " WHERE `expire` < ".time());
 }
 
 

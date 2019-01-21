@@ -29,7 +29,7 @@ function sanitize_output($buffer) {
     return $buffer;
 }
 function Wo_LoadPage($page_url = '') {
-    global $wo;
+    global $wo,$db;
     $create_file = false;
     if ($page_url == 'sidebar/content' && $wo['loggedin'] == true && $wo['config']['cache_sidebar'] == 1) {
         $file_path = './cache/sidebar-' . $wo['user']['user_id'] . '.tpl';
@@ -479,6 +479,7 @@ function Wo_SeoLink($query = '') {
     global $wo, $config;
     if ($wo['config']['seoLink'] == 1) {
         $query = preg_replace(array(
+            '/^index\.php\?link1=forumaddthred&fid=(\d+)$/i',
             '/^index\.php\?link1=welcome&link2=password_reset&user_id=([A-Za-z0-9_]+)$/i',
             '/^index\.php\?link1=welcome&last_url=(.*)$/i',
             '/^index\.php\?link1=([^\/]+)&query=$/i',
@@ -552,6 +553,7 @@ function Wo_SeoLink($query = '') {
             '/^index\.php\?link1=([^\/]+)$/i',
             '/^index\.php\?link1=welcome$/i',
         ), array(
+            $config['site_url'] . '/forums/add/$1/',
             $config['site_url'] . '/password-reset/$1',
             $config['site_url'] . '/welcome/?last_url=$1',
             $config['site_url'] . '/search/$2',
@@ -1540,11 +1542,12 @@ function Wo_DelexpiredEnvents(){
     $t_events_int = T_EVENTS_INT;
     $t_posts = T_POSTS;
     $sql          = "SELECT `id` FROM `$t_events` WHERE `end_date` < CURDATE()";
-
+    
+    @mysqli_query($sqlConnect,"DELETE FROM `$t_posts` WHERE `event_id` IN ({$sql})");
+    @mysqli_query($sqlConnect,"DELETE FROM `$t_posts` WHERE `page_event_id` IN ({$sql})");
     @mysqli_query($sqlConnect,"DELETE FROM `$t_events_inv` WHERE `event_id` IN ({$sql})");
     @mysqli_query($sqlConnect,"DELETE FROM `$t_events_go` WHERE `event_id` IN ({$sql})");
     @mysqli_query($sqlConnect,"DELETE FROM `$t_events_int` WHERE `event_id` IN ({$sql})");
-    @mysqli_query($sqlConnect,"DELETE FROM `$t_posts` WHERE `event_id` IN ({$sql})");
     @mysqli_query($sqlConnect,"DELETE FROM `$t_events` WHERE `end_date` < CURDATE()");
 }
 
@@ -1586,6 +1589,9 @@ function fetchDataFromURL($url = '') {
     curl_setopt( $ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows; U; Windows NT 5.0; en-US; rv:1.7.12) Gecko/20050915 Firefox/1.0.7");
     curl_setopt( $ch, CURLOPT_HEADER, false );
     curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+    curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+    curl_setopt( $ch, CURLOPT_CONNECTTIMEOUT, 5);
+    curl_setopt( $ch, CURLOPT_TIMEOUT, 5);
     return curl_exec( $ch );
 }
 

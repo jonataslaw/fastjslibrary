@@ -360,6 +360,15 @@ function Wo_GetProducts($filter_data = array()) {
         $user_id = Wo_Secure($filter_data['user_id']);
         $query_one .= " AND `user_id` = '{$user_id}'";
     }
+    if (!empty($filter_data['order_by']) && $filter_data['order_by'] == 'price_low' && !empty($filter_data['price'])) {
+        $price = Wo_Secure($filter_data['price']);
+        $query_one .= " AND `price` >= '{$price}'";
+    }
+    else if (!empty($filter_data['order_by']) && $filter_data['order_by'] == 'price_high' && !empty($filter_data['price'])) {
+
+        $price = Wo_Secure($filter_data['price']);
+        $query_one .= " AND `price` <= '{$price}'";
+    }
     if (!empty($filter_data['length'])) {
         $user_lat     = $wo['user']['lat'];
         $user_lng     = $wo['user']['lng'];
@@ -384,13 +393,23 @@ function Wo_GetProducts($filter_data = array()) {
             $user_id = Wo_Secure($filter_data['user_id']);
             $query_one .= " AND `user_id` = '{$user_id}'";
         }
+
         $query_one  = "SELECT `id`, `user_id`, ( {$unit} * acos(cos(radians('$user_lat'))  * 
         cos(radians(lat)) * cos(radians(lng) - radians('$user_lng')) + 
         sin(radians('$user_lat')) * sin(radians(lat ))) ) AS distance 
         FROM " . T_PRODUCTS . " WHERE `lat` <> 0 AND `lng` <> 0 $query_one
         HAVING distance < '$distance'";
     }
-    $query_one .= " ORDER BY `id` DESC";
+    if (!empty($filter_data['order_by']) && $filter_data['order_by'] == 'price_low') {
+        $query_one .= " ORDER BY `price` ASC";
+    }
+    else if (!empty($filter_data['order_by']) && $filter_data['order_by'] == 'price_high') {
+        $query_one .= " ORDER BY `price` DESC";
+    }
+    else{
+        $query_one .= " ORDER BY `id` DESC";
+    }
+    
     if (!empty($filter_data['limit'])) {
         if (is_numeric($filter_data['limit'])) {
             $limit = Wo_Secure($filter_data['limit']);
@@ -3627,7 +3646,7 @@ function Wo_GetSideBarAds() {
         AND `status` = '1' AND `appears` = 'sidebar' AND
         (`gender` = '$user_gender' OR `gender` = 'all')  AND `audience` LIKE '%$user_country%'
         {$query_one}
-        ORDER BY `id` DESC LIMIT 2";
+        ORDER BY RAND() LIMIT 2";
     $query = mysqli_query($sqlConnect, $sql);
     $data  = array();
     while ($fetched_data = mysqli_fetch_assoc($query)) {
@@ -4119,6 +4138,7 @@ function Wo_DeleteStatus($id) {
             }
         }
     }
+    @mysqli_query($sqlConnect, "DELETE FROM " . T_STORY_SEEN . " WHERE `story_id` = '$id'");
     @mysqli_query($sqlConnect, "DELETE FROM " . T_USER_STORY_MEDIA . " WHERE `story_id` = '$id'");
     $query = mysqli_query($sqlConnect, "DELETE FROM " . T_USER_STORY . " WHERE `id` = '$id'");
     return $query;
@@ -5286,7 +5306,7 @@ function Wo_GetNearbyUsers($args = array()) {
         $name = Wo_Secure($name);
         $sub_sql .= " AND (`username` LIKE '%$name%' OR `first_name` LIKE '%$name%' OR `last_name` LIKE '%$name%') ";
     }
-    if (isset($status)) {
+    if (isset($status) && $status != false) {
         if ($status == 1) {
             $time = time() - 60;
             $sub_sql .= " AND `lastseen` > '$time'";
@@ -5328,6 +5348,77 @@ function Wo_GetNearbyUsers($args = array()) {
     }
     return $data;
 }
+function Wo_GetNearbyUsersCount($args = array()) {
+    global $wo, $sqlConnect;
+    if ($wo['loggedin'] == false || empty($args)) {
+        return false;
+    }
+    $options      = array(
+        "offset" => false,
+        "gender" => false,
+        "name" => false,
+        "distance" => false,
+        "relship" => false,
+        "status" => false,
+        "limit" => 20
+    );
+    $args         = array_merge($options, $args);
+    $offset       = Wo_Secure($args['offset']);
+    $gender       = Wo_Secure($args['gender']);
+    $name         = Wo_Secure($args['name']);
+    $loc_distance = Wo_Secure($args['distance']);
+    $status       = Wo_Secure($args['status']);
+    $relship      = Wo_Secure($args['relship']);
+    $limit        = Wo_Secure($args['limit']);
+    $unit         = 6371;
+    $user_lat     = $wo['user']['lat'];
+    $user_lng     = $wo['user']['lng'];
+    $user         = $wo['user']['id'];
+    $t_users      = T_USERS;
+    $t_followers  = T_FOLLOWERS;
+    $distance     = 25;
+    $data         = array();
+    $sub_sql      = "";
+    if ($loc_distance && is_numeric($loc_distance) && $loc_distance > 0) {
+        $distance = $loc_distance;
+    }
+    if ($name) {
+        $name = Wo_Secure($name);
+        $sub_sql .= " AND (`username` LIKE '%$name%' OR `first_name` LIKE '%$name%' OR `last_name` LIKE '%$name%') ";
+    }
+    if (isset($status) && $status != false) {
+        if ($status == 1) {
+            $time = time() - 60;
+            $sub_sql .= " AND `lastseen` > '$time'";
+        } else if ($status == 0) {
+            $time = time() - 60;
+            $sub_sql .= " AND `lastseen` < '$time'";
+        }
+    }
+    if ($relship && in_array($relship, array_keys($wo['relationship']))) {
+        $sub_sql .= " AND `relationship_id`  = '$relship' ";
+    }
+    if ($offset && is_numeric($offset) && $offset > 0) {
+        $sub_sql .= " AND `user_id` <  '$offset' AND `user_id` <> '$offset' ";
+    }
+    if ($gender && in_array($gender, array(
+        'male',
+        'female'
+    ))) {
+        $sub_sql .= " AND `gender` = '$gender' ";
+    }
+    $sql   = "
+    SELECT COUNT(user_id), ( {$unit} * acos(cos(radians('$user_lat'))  * 
+    cos(radians(lat)) * cos(radians(lng) - radians('$user_lng')) + 
+    sin(radians('$user_lat')) * sin(radians(lat ))) ) AS distance 
+    FROM $t_users WHERE `user_id` <> '$user'   {$sub_sql}
+    AND `user_id` NOT IN (SELECT `follower_id` FROM $t_followers WHERE `follower_id` <> {$user} AND `following_id` = {$user} AND `active` = '1')
+    AND `user_id` NOT IN (SELECT `following_id` FROM $t_followers WHERE `follower_id` = {$user} AND `following_id` <> {$user} AND `active` = '1')
+    AND `lat` <> 0 AND `lng` <> 0 GROUP BY user_id
+    HAVING distance < '$distance' ORDER BY `user_id` DESC ";
+    $query = mysqli_query($sqlConnect, $sql);
+    return mysqli_num_rows($query);
+}
 function Wo_CountStories($user_id = 0) {
     global $wo, $sqlConnect;
     if ($wo['loggedin'] == false) {
@@ -5357,8 +5448,10 @@ function Wo_GetFriendsStatus($data_array = array('limit' => 8, 'user_id' => 0)) 
     if (!empty($data_array['api'])) {
         $group_by = "";
     }
-    $query     = "SELECT * FROM " . T_USER_STORY . " WHERE (user_id IN (SELECT following_id FROM " . T_FOLLOWERS . " WHERE follower_id = '$user_id') OR user_id = $user_id) AND user_id IN (SELECT user_id FROM " . T_USERS . " WHERE active = '1') $group_by ORDER BY id DESC LIMIT " . $data_array['limit'];
+    // $query     = "SELECT * FROM " . T_USER_STORY . " WHERE (user_id IN (SELECT following_id FROM " . T_FOLLOWERS . " WHERE follower_id = '$user_id') OR user_id = $user_id) AND user_id IN (SELECT user_id FROM " . T_USERS . " WHERE active = '1') $group_by ORDER BY id DESC";
+    $query     = "SELECT DISTINCT user_id,title,description,posted,expire,thumbnail,(SELECT MAX(us.id) FROM " . T_USER_STORY . " us WHERE us.user_id = " . T_USER_STORY . ".user_id) AS id  FROM " . T_USER_STORY . " WHERE (user_id IN (SELECT following_id FROM " . T_FOLLOWERS . " WHERE follower_id = '$user_id') OR user_id = $user_id) AND user_id IN (SELECT user_id FROM " . T_USERS . " WHERE active = '1') $group_by ORDER BY id DESC LIMIT ".$data_array['limit'];
     $query_run = mysqli_query($sqlConnect, $query);
+
     while ($fetched_data = mysqli_fetch_assoc($query_run)) {
         $story_images              = Wo_GetStoryMedia($fetched_data['id'], 'image');
         $fetched_data['user_data'] = Wo_UserData($fetched_data['user_id']);
@@ -5373,6 +5466,7 @@ function Wo_GetFriendsStatus($data_array = array('limit' => 8, 'user_id' => 0)) 
         $fetched_data['is_owner']          = ($fetched_data['user_id'] == $wo['user']['id'] || Wo_IsAdmin() || Wo_IsModerator()) ? true : false;
         $data[]                            = $fetched_data;
     }
+
     return $data;
 }
 
@@ -5566,11 +5660,9 @@ function Wo_AutoFollow($user_id = 0) {
                 } else {
                     $registerFollow = Wo_RegisterFollow($getUserID, $wo['user']['user_id']);
                 }
-                if ($registerFollow) {
-                    return true;
-                }
             }
         }
+        return true;
     } else {
         return false;
     }
@@ -5694,4 +5786,11 @@ function Wo_VerfiyIP($username = '') {
     } else {
         return true;
     }
+}
+
+function Wo_GetAllStatus()
+{
+    global $wo, $db;
+    $user_id = $wo['user']['user_id'];
+    return $db->rawQuery("SELECT DISTINCT user_id,title,description,posted,expire,thumbnail,(SELECT MAX(us.id) FROM " . T_USER_STORY . " us WHERE us.user_id = " . T_USER_STORY . ".user_id) AS id  FROM " . T_USER_STORY . " WHERE (user_id IN (SELECT following_id FROM " . T_FOLLOWERS . " WHERE follower_id = '$user_id') OR user_id = $user_id) AND user_id IN (SELECT user_id FROM " . T_USERS . " WHERE active = '1') GROUP BY user_id ORDER BY id DESC");
 }
