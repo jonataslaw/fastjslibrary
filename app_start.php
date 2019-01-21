@@ -161,7 +161,7 @@ $wo['site_pages'] = array(
     'authorize'
 );
 
-$wo['script_version']  = '2.0.3';
+$wo['script_version']  = '2.0.3.1';
 $http_header           = 'http://';
 if (!empty($_SERVER['HTTPS'])) {
     $http_header = 'https://';
