@@ -2252,7 +2252,7 @@ function Wo_RegisterNotification($data = array()) {
 
                 }
             }
-            if ($wo['config']['push_notifications'] == 1) {
+            if ($wo['config']['android_push_native'] == 1 || $wo['config']['ios_push_native'] == 1 || $wo['config']['web_push'] == 1) {
                 Wo_NotificationWebPushNotifier();
             }
             return true;

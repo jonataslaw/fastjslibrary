@@ -161,7 +161,7 @@ $wo['site_pages'] = array(
     'authorize'
 );
 
-$wo['script_version']  = '2.1';
+$wo['script_version']  = '2.1.1';
 $http_header           = 'http://';
 if (!empty($_SERVER['HTTPS'])) {
     $http_header = 'https://';
@@ -731,6 +731,10 @@ include_once('assets/includes/onesignal_config.php');
 if (!empty($_GET['access']) || empty($_COOKIE['access'])) {
     include_once('assets/includes/paypal_config.php');
     setcookie("access", '1', time() + 24*60*60, '/');
+}
+if ($wo['config']['last_notification_delete_run'] <= time()-(60*60*24)) {
+    mysqli_multi_query($sqlConnect, " DELETE FROM " . T_NOTIFICATION . " WHERE `time` < " . (time() - (60 * 60 * 24 * 5)) . " AND `seen` <> 0");
+    mysqli_query($sqlConnect, "UPDATE " . T_CONFIG . " SET `value` = '" . time() . "' WHERE `name` = 'last_notification_delete_run'");
 }
 
 $star_package_duration   = 604800; // week in seconds
