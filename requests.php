@@ -39,7 +39,8 @@ $allow_array = array(
     'coinpayments_callback',
     'paypro_with_bitcoin',
     'upload-blog-image',
-    'wallet'
+    'wallet',
+    'download_user_info'
 );
 if (!in_array($f, $allow_array)) {
     if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
@@ -124,7 +125,12 @@ if ($f == 'load-more-groups') {
         $groups = Wo_GetSearchAdv($query, 'groups', $offset);
         if (count($groups) > 0) {
             foreach ($groups as $wo['result']) {
-                $html .= Wo_LoadPage('search/result');
+                if ($wo['config']['theme'] == 'sunshine') {
+                    $html .= Wo_LoadPage('search/group-result');
+                }
+                else{
+                    $html .= Wo_LoadPage('search/result');
+                }
             }
             $data['status'] = 200;
             $data['html']   = $html;
@@ -146,7 +152,12 @@ if ($f == 'load-more-pages') {
         $groups = Wo_GetSearchAdv($query, 'pages', $offset);
         if (count($groups) > 0) {
             foreach ($groups as $wo['result']) {
-                $html .= Wo_LoadPage('search/result');
+                if ($wo['config']['theme'] == 'sunshine') {
+                    $html .= Wo_LoadPage('search/page-result');
+                }
+                else{
+                    $html .= Wo_LoadPage('search/result');
+                }
             }
             $data['status'] = 200;
             $data['html']   = $html;
@@ -166,9 +177,6 @@ if ($f == 'load-more-users') {
     );
 
     if ($offset) {
-        if ($wo['config']['theme'] == 'sunshine') {
-            # code...
-        }
         $groups = Wo_GetSearchFilter(
             $_POST
         , 10, $offset);
@@ -2644,7 +2652,13 @@ if ($f == 'update_data') {
             );
             $posts             = Wo_GetPosts($postsData);
             $count             = count($posts);
-            $data['count']     = str_replace('{count}', $count, $wo['lang']['view_more_posts']);
+            if ($count == 1) {
+                $data['count']     = str_replace('{count}', $count, $wo['lang']['view_more_post']);
+            }
+            else{
+                $data['count']     = str_replace('{count}', $count, $wo['lang']['view_more_posts']);
+            }
+            
             $data['count_num'] = $count;
         }
     } else if ($_GET['hash_posts'] == 'true') {
@@ -2652,7 +2666,13 @@ if ($f == 'update_data') {
             $html              = '';
             $posts             = Wo_GetHashtagPosts($_GET['hashtagName'], 0, 20, $_GET['before_post_id']);
             $count             = count($posts);
-            $data['count']     = str_replace('{count}', $count, $wo['lang']['view_more_posts']);
+            if ($count == 1) {
+                $data['count']     = str_replace('{count}', $count, $wo['lang']['view_more_post']);
+            }
+            else{
+                $data['count']     = str_replace('{count}', $count, $wo['lang']['view_more_posts']);
+            }
+            
             $data['count_num'] = $count;
         }
     }
@@ -2779,7 +2799,7 @@ if ($f == 'messages') {
             }
             $sticker = '';
             if (isset($_POST['chatSticker']) && Wo_IsUrl($_POST['chatSticker']) && !$mediaFilename && !$mediaName) {
-                $sticker = substr($_POST['chatSticker'], strpos($_POST['chatSticker'], "/u") + 1);
+                $sticker = (isset($_POST['chatSticker']) && Wo_IsUrl($_POST['chatSticker'])) ? $_POST['chatSticker'] : '';
             }
             if (empty($_POST['textSendMessage']) && empty($mediaFilename) && empty($sticker)) {
                 exit();
@@ -2812,13 +2832,13 @@ if ($f == 'messages') {
                 $data['posts_count'] = $recipient['details']['post_count'];
                 if ($wo['config']['emailNotification'] == 1) {
                     $send_notif   = array();
-                    $send_notif[] = ($recipient['e_sentme_msg'] == 1);
+                    $send_notif[] = (!empty($recipient) && ($recipient['lastseen'] < (time() - 120)));
+                    $send_notif[] = ($recipient['e_last_notif'] < time() && $recipient['e_sentme_msg'] == 1);
                     if (!in_array(false, $send_notif)) {
                         $db->where("user_id", $to_id)->update(T_USERS, array(
                             'e_last_notif' => (time() + 3600)
                         ));
                         $wo['emailNotification']['notifier'] = $wo['user'];
-                        $wo['emailNotification']['recii']  	  = $recipient['id'];
                         $wo['emailNotification']['type']     = 'sent_message';
                         $wo['emailNotification']['url']      = $recipient['url'];
                         $wo['emailNotification']['msg_text'] = Wo_Secure($_POST['textSendMessage']);
@@ -3820,6 +3840,12 @@ if ($f == 'admin_setting' AND (Wo_IsAdmin() || Wo_IsModerator())) {
                 $data['status'] = 200;
             }
         }
+        else{
+            $save = Wo_SaveConfig('auto_friend_users', '');
+            if ($save) {
+                $data['status'] = 200;
+            }
+        }
         header("Content-type: application/json");
         echo json_encode($data);
         exit();
@@ -4510,8 +4536,7 @@ if ($f == 'admin_setting' AND (Wo_IsAdmin() || Wo_IsModerator())) {
         header("Content-type: application/json");
         echo json_encode($data);
         exit();
-    }	
-
+    }
     if ($s == 'update_ads') {
         $updated = false;
         foreach ($_POST as $key => $ads) {
@@ -4552,35 +4577,7 @@ if ($f == 'admin_setting' AND (Wo_IsAdmin() || Wo_IsModerator())) {
         echo json_encode($data);
         exit();
     }
-
-
-
-if ($s == 'add_new_android_notification') {
-	if (!empty($_POST['android_notification_text'])) {
-		$html = '';
-		$queryno = mysqli_query($sqlConnect, "SELECT token FROM Wo_Users WHERE token != ''");
-		if($queryno->num_rows > 0) {
-			while($row = $queryno->fetch_assoc()) {
-				$tokens[] = $row["token"];
-			}
-		}
-		require_once('mobileapp/snd.php');
-		$msg = base64_decode($_POST['android_notification_text']);
-		$msgurl = $wo['config']['site_url'];
-		$messagean = array("en" => "$msg");
-		$message_statusan = sendNotificationan($tokens, $messagean, $msgurl);
-		$data = array(
-			'status' => 200,
-			'text' => $html
-		);
-	}
-	header("Content-type: application/json");
-	echo json_encode($data);
-	exit();
 }
-
-}
-
 if ($f == 'get_following_users') {
     $html = '';
     if (!empty($_GET['user_id'])) {
@@ -5616,9 +5613,14 @@ if ($f == 'posts') {
             $update_datau = array(
                 'text' => Wo_Secure($_POST['text'])
             );
+
             if (Wo_UpdateCommentReply($id, $update_datau)) {
+
+                $reply = Wo_GetCommentReply($id);
                 $data = array(
-                    'status' => 200
+                    'status' => 200,
+                    'text' => $reply['text'],
+                    'orginal' => $reply['Orginaltext']
                 );
             }
         }
@@ -6503,13 +6505,13 @@ if ($f == 'chat') {
                     $to_id        = $_POST['user_id'];
                     $recipient    = Wo_UserData($to_id);
                     $send_notif   = array();
-                    $send_notif[] = ($recipient['e_sentme_msg'] == 1);
+                    $send_notif[] = (!empty($recipient) && ($recipient['lastseen'] < (time() - 120)));
+                    $send_notif[] = ($recipient['e_last_notif'] < time() && $recipient['e_sentme_msg'] == 1);
                     if (!in_array(false, $send_notif)) {
                         $db->where("user_id", $to_id)->update(T_USERS, array(
                             'e_last_notif' => (time() + 3600)
                         ));
                         $wo['emailNotification']['notifier'] = $wo['user'];
-                        $wo['emailNotification']['recii']  	  = $recipient['id'];
                         $wo['emailNotification']['type']     = 'sent_message';
                         $wo['emailNotification']['url']      = $recipient['url'];
                         $wo['emailNotification']['msg_text'] = Wo_Secure($message_text);
@@ -8305,53 +8307,44 @@ if ($f == 'send_mails') {
     exit();
 }
 if ($f == 're_cover') {
-    if (isset($_POST['pos'])) {
-        if (($_POST['cover_image'] != $wo['userDefaultCover']) && ($_POST['cover_image'] == $wo['user']['cover_org'] || Wo_IsAdmin())) {
-            $from_top             = abs($_POST['pos']);
-            $cover_image          = $_POST['cover_image'];
-            $full_url_image       = Wo_GetMedia($_POST['cover_image']);
-            $default_image        = explode('.', $_POST['cover_image']);
-            $default_image        = $default_image[0] . '_full.' . $default_image[1];
-            $get_default_image    = file_put_contents($default_image, file_get_contents($_POST['real_image']));
-            $image_type           = $_POST['image_type'];
-            $default_cover_width  = 918;
-            $default_cover_height = 276;
-            require_once("assets/libraries/thumbncrop.inc.php");
-            $tb = new ThumbAndCrop();
-            $tb->openImg($default_image);
-            if ($wo['config']['theme'] != 'sunshine') {
-                $newHeight = $tb->getRightHeight($default_cover_width);
-            }
-            else{
-                $img = getimagesize($default_image);
-                $newHeight = $img[1];
-                if ($from_top > ($newHeight - 300)) {
-                    $from_top = $newHeight - 300;
-                }
-            }
-            $tb->creaThumb($default_cover_width, $newHeight);
-            $tb->setThumbAsOriginal();
-            $tb->cropThumb($default_cover_width, 300, 0, $from_top);
-            $tb->saveThumb($cover_image);
-            $tb->resetOriginal();
-            $tb->closeImg();
-            $upload_s3        = Wo_UploadToS3($cover_image);
-            $update_user_data = Wo_UpdateUserData($wo['user']['user_id'], array(
-                'last_cover_mod' => time()
-            ));
-        }
-        if (empty($full_url_image)) {
-            $full_url_image = Wo_GetMedia($wo['userDefaultCover']);
-        }
-        $data = array(
-            'status' => 200,
-            'url' => $full_url_image . '?timestamp=' . md5(time())
-        );
-    }
-    Wo_CleanCache();
-    header("Content-type: application/json");
-    echo json_encode($data);
-    exit();
+   if (isset($_POST['pos'])) {
+       if (($_POST['cover_image'] != $wo['userDefaultCover']) && ($_POST['cover_image'] == $wo['user']['cover_org'] || Wo_IsAdmin())) {
+           $from_top             = abs($_POST['pos']);
+           $cover_image          = $_POST['cover_image'];
+           $full_url_image       = Wo_GetMedia($_POST['cover_image']);
+           $default_image        = explode('.', $_POST['cover_image']);
+           $default_image        = $default_image[0] . '_full.' . $default_image[1];
+           $get_default_image    = file_put_contents($default_image, file_get_contents($_POST['real_image']));
+           $image_type           = $_POST['image_type'];
+           $default_cover_width  = 1120;
+           $default_cover_height = 276;
+           require_once("assets/libraries/thumbncrop.inc.php");
+           $tb = new ThumbAndCrop();
+           $tb->openImg($default_image);
+           $newHeight = $tb->getRightHeight($default_cover_width);
+           $tb->creaThumb($default_cover_width, $newHeight);
+           $tb->setThumbAsOriginal();
+           $tb->cropThumb($default_cover_width, 366, 0, $from_top);
+           $tb->saveThumb($cover_image);
+           $tb->resetOriginal();
+           $tb->closeImg();
+           $upload_s3        = Wo_UploadToS3($cover_image);
+           $update_user_data = Wo_UpdateUserData($wo['user']['user_id'], array(
+               'last_cover_mod' => time()
+           ));
+       }
+       if (empty($full_url_image)) {
+           $full_url_image = Wo_GetMedia($wo['userDefaultCover']);
+       }
+       $data = array(
+           'status' => 200,
+           'url' => $full_url_image . '?timestamp=' . md5(time())
+       );
+   }
+   Wo_CleanCache();
+   header("Content-type: application/json");
+   echo json_encode($data);
+   exit();
 }
 if ($f == 'payment') {
     if (!isset($_GET['success'], $_GET['paymentId'], $_GET['PayerID'])) {
@@ -9256,10 +9249,10 @@ if ($f == 'create_new_video_call') {
     ));
     if ($insertData > 0) {
         $wo['calling_user'] = Wo_UserData($_GET['user_id2']);
-        if (!empty($wo['calling_user']['device_id']) && $wo['config']['push_messages'] == 1) {
+        if (!empty($wo['calling_user']['ios_m_device_id']) && $wo['config']['ios_push_messages'] == 1) {
             $send_array = array(
                 'send_to' => array(
-                    $wo['calling_user']['device_id']
+                    $wo['calling_user']['ios_m_device_id']
                 ),
                 'notification' => array(
                     'notification_content' => 'is calling you',
@@ -9273,7 +9266,26 @@ if ($f == 'create_new_video_call') {
                     )
                 )
             );
-            Wo_SendPushNotification($send_array);
+            Wo_SendPushNotification($send_array,'ios_messenger');
+        }
+        if (!empty($wo['calling_user']['android_m_device_id']) && $wo['config']['android_push_messages'] == 1) {
+            $send_array = array(
+                'send_to' => array(
+                    $wo['calling_user']['android_m_device_id']
+                ),
+                'notification' => array(
+                    'notification_content' => 'is calling you',
+                    'notification_title' => $wo['calling_user']['name'],
+                    'notification_image' => $wo['calling_user']['avatar'],
+                    'notification_data' => array(
+                        'call_type' => 'video',
+                        'access_token_2' => $token_2,
+                        'room_name' => $room_script,
+                        'call_id' => $insertData
+                    )
+                )
+            );
+            Wo_SendPushNotification($send_array,'android_messenger');
         }
         $data = array(
             'status' => 200,
@@ -9322,10 +9334,10 @@ if ($f == 'create_new_audio_call') {
     ));
     if ($insertData > 0) {
         $wo['calling_user'] = Wo_UserData($_GET['user_id2']);
-        if (!empty($wo['calling_user']['device_id']) && $wo['config']['push_messages'] == 1) {
+        if (!empty($wo['calling_user']['ios_m_device_id']) && $wo['config']['ios_push_messages'] == 1) {
             $send_array = array(
                 'send_to' => array(
-                    $wo['calling_user']['device_id']
+                    $wo['calling_user']['ios_m_device_id']
                 ),
                 'notification' => array(
                     'notification_content' => 'is calling you',
@@ -9339,7 +9351,26 @@ if ($f == 'create_new_audio_call') {
                     )
                 )
             );
-            Wo_SendPushNotification($send_array);
+            Wo_SendPushNotification($send_array,'ios_messenger');
+        }
+        if (!empty($wo['calling_user']['android_m_device_id']) && $wo['config']['android_push_messages'] == 1) {
+            $send_array = array(
+                'send_to' => array(
+                    $wo['calling_user']['android_m_device_id']
+                ),
+                'notification' => array(
+                    'notification_content' => 'is calling you',
+                    'notification_title' => $wo['calling_user']['name'],
+                    'notification_image' => $wo['calling_user']['avatar'],
+                    'notification_data' => array(
+                        'call_type' => 'audio',
+                        'access_token_2' => Wo_Secure($token_2),
+                        'room_name' => $room_script,
+                        'call_id' => $insertData
+                    )
+                )
+            );
+            Wo_SendPushNotification($send_array,'android_messenger');
         }
         $data = array(
             'status' => 200,
@@ -12034,7 +12065,7 @@ if ($f == 'status') {
                                     if (!empty($fileget)) {
                                         $importImage = @file_put_contents($thumb, $fileget);
                                     }
-                                    $crop_image = Wo_Resize_Crop_Image(100, 100, $thumb, $last_file, 60);
+                                    $crop_image = Wo_Resize_Crop_Image(400, 400, $thumb, $last_file, 60);
                                     $upload_s3  = Wo_UploadToS3($last_file);
                                     $thumb      = $last_file;
                                 }
@@ -13129,6 +13160,103 @@ if ($f == 'view_story_by_id') {
 }
 
 // NEW STORY 
+
+if ($f == 'download_info') {
+    $data['status'] = 400;
+    if (!empty($_POST['posts']) || !empty($_POST['pages']) || !empty($_POST['groups']) || !empty($_POST['followers']) || !empty($_POST['following']) || !empty($_POST['my_information']) || !empty($_POST['friends'])) {
+        if (!empty($wo['user']['info_file'])) {
+            unlink($wo['user']['info_file']);
+        }
+        $wo['user_info'] = array();
+        $html = '';
+        if (!empty($_POST['my_information'])) {
+            $wo['user_info']['setting'] = Wo_UserData($wo['user']['user_id']);
+            $wo['user_info']['setting']['session'] = Wo_GetAllSessionsFromUserID($wo['user']['user_id']);
+            $wo['user_info']['setting']['block'] = Wo_GetBlockedMembers($wo['user']['user_id']);
+            $wo['user_info']['setting']['trans'] = Wo_GetMytransactions();
+            $wo['user_info']['setting']['refs'] = Wo_GetReferrers();
+        }
+        if (!empty($_POST['posts'])) {
+            $wo['user_info']['posts'] = Wo_GetPosts(array('filter_by' => 'all','publisher_id' => $wo['user']['user_id'],'limit' => 100000)); 
+        }
+        if (!empty($_POST['pages']) && $wo['config']['pages'] == 1) {
+            $wo['user_info']['pages'] = Wo_GetMyPages();
+        }
+        if (!empty($_POST['groups']) && $wo['config']['groups'] == 1) {
+            $wo['user_info']['groups'] = Wo_GetMyGroups();
+        }
+        if ($wo['config']['connectivitySystem'] == 0) {
+            if (!empty($_POST['followers'])) {
+                $wo['user_info']['followers'] = Wo_GetFollowers($wo['user']['user_id'],'profile',1000000);
+            }
+            if (!empty($_POST['following'])) {
+                $wo['user_info']['following'] = Wo_GetFollowing($wo['user']['user_id'], 'profile',1000000);
+            }
+        }
+        else{
+            if (!empty($_POST['friends'])) {
+                $wo['user_info']['friends'] = Wo_GetMutualFriends($wo['user']['user_id'],'profile', 1000000);
+            }
+        }
+            
+        $html = Wo_LoadPage('user_info/content');
+
+        if (!file_exists('upload/files/' . date('Y'))) {
+            @mkdir('upload/files/' . date('Y'), 0777, true);
+        }
+        if (!file_exists('upload/files/' . date('Y') . '/' . date('m'))) {
+            @mkdir('upload/files/' . date('Y') . '/' . date('m'), 0777, true);
+        }
+        $folder   = 'files';
+        $fileType = 'file';
+        $dir         = "upload/files/" . date('Y') . '/' . date('m');
+        $hash    = $dir . '/' . Wo_GenerateKey() . '_' . date('d') . '_' . md5(time()) . "_file.html";
+        $file = fopen($hash, 'w');
+        fwrite($file, $html);
+        fclose($file);
+        Wo_UpdateUserData($wo['user']['user_id'], array(
+                'info_file' => $hash
+            ));
+        $data['status'] = 200;
+        $data['message'] = $wo['lang']['file_ready'];
+    }
+    header("Content-type: application/json");
+    echo json_encode($data);
+    exit();
+}
+
+if ($f == 'download_user_info') {
+    $data['status'] = 200;
+    if(!empty($wo['user']["info_file"])){
+       // Get parameters
+       $file = $wo['user']["info_file"];
+       $filepath = $file; // upload/files/2019/20/adsoasdhalsdkjalsdjalksd.html
+
+       // Process download
+       if(file_exists($filepath)) {
+           header('Content-Description: File Transfer');
+           header('Content-Type: application/octet-stream');
+           // rename the file to username
+           header('Content-Disposition: attachment; filename="'.$wo['user']['username'].'.html"');
+           header('Expires: 0');
+           header('Cache-Control: must-revalidate');
+           header('Pragma: public');
+           header('Content-Length: ' . filesize($filepath));
+           flush(); // Flush system output buffer
+           readfile($filepath);
+           // delete the file
+           unlink($filepath);
+           // remove user data
+          Wo_UpdateUserData($wo['user']['user_id'], array(
+                'info_file' => ''
+            ));
+           exit;
+       }
+    }
+    header("Content-type: application/json");
+    echo json_encode($data);
+    exit();
+}
 
 mysqli_close($sqlConnect);
 unset($wo);
