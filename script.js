@@ -838,6 +838,12 @@ function Wo_OpenPostEditBox(post_id) {
     show: true
   });
 }
+function Wo_Get_Mention(self) {
+  $(self).triggeredAutocomplete({
+       source: Wo_Ajax_Requests_File() + "?f=mention",
+       trigger: "@" 
+    });
+}
 
 // save edited post
 function Wo_EditPost(post_id) {
@@ -930,6 +936,8 @@ function Wo_ReportComment( comment_id ){
 }
 // save edited comment
 function Wo_EditComment(text, comment_id, event) {
+  comment_ = $('#edit_comment_'+comment_id);
+  Wo_Get_Mention(comment_);
   comment = $('[id=comment_' + comment_id + ']');
   comment_text = comment.find('.comment-text');
   if(event.keyCode == 13 && event.shiftKey == 0) {
@@ -1325,7 +1333,7 @@ function Wo_StartRepositioner() {
                 ui.position.top = 0;
             }else
                 if (ui.position.top <= (y1-y2)) {
-                    ui.position.top = y1-y2;
+                    ui.position.top = (y1-y2);
                 }
             },
             stop: function(event, ui) {
@@ -1337,6 +1345,10 @@ function Wo_StartRepositioner() {
 function Wo_SubmitRepositioner() {
     if ($('input.cover-position').length == 1) {
         posY = $('input.cover-position').val();
+        posY = Number(posY);
+        $('input.cover-position').val(posY);
+        $('input.cover-height').val($('.user-cover-reposition-container').height());
+        $('input.cover-width').val($('.user-cover-reposition-container').width());
         $('form.cover-position-form').submit();
     }
 }
@@ -2373,14 +2385,13 @@ function Wo_StoryProgress(){
 function Wo_EditReplyComment(id){
   if (!id) { return false;}
   var self = $("div[data-post-comm-reply-edit='"+id+"']").toggleClass('hidden');  
-  self.find('textarea').val($("div[data-post-comm-reply-text='"+id+"']").text().trim());
+  //self.find('textarea').val($("div[data-post-comm-reply-text='"+id+"']").text().trim());
 }
 
 function Wo_UpdatCommReply(id,event,self){
   if (!id || !event || !self) {
     return false;
   }
-
   else if (event.keyCode == 13 && event.shiftKey == 0) {
     var text = $(self).val();
     var id   = id;
@@ -2392,9 +2403,9 @@ function Wo_UpdatCommReply(id,event,self){
     })
     .done(function(data) {
       if (data.status == 200) {
-        $("div[data-post-comm-reply-text='"+id+"']").text(text);
+        $("div[data-post-comm-reply-text='"+id+"']").html(data.text);
         var edit_box = $("div[data-post-comm-reply-edit='"+id+"']").addClass('hidden');
-        edit_box.find('textarea').val('');
+        edit_box.find('textarea').val(data.orginal);
       }
     })
     .fail(function() {
@@ -2402,7 +2413,9 @@ function Wo_UpdatCommReply(id,event,self){
     })
     
   }
-
+  else{
+    Wo_Get_Mention(self);
+  }
 }
 
 function Wo_HidePost(post_id){
@@ -2650,7 +2663,7 @@ function Wo_RegisterReplyReaction(user_id,reply_id,reaction){
 
 
 function load_ajax_emojii(id, path){
-    var emojjii = "😀*😁*😂*🤣*😃*😄*😅*😆*😉*😊*😋*😎*😍*😘*😗*😙*😚*🙂*🤗*🤩*🤔*🤨*😐*😑*😶*🙄*😏*😣*😥*😮*🤐*😯*😪*😫*😴*😌*😛*😜*😝*🤤*😒*😓*😔*😕*🙃*🤑*😲*☹️*🙁*😖*😞*😟*😤*😢*😭*😦*😧*😨*😩*🤯*😬*😰*😱*😳*🤪*😵*😡*😠*🤬*😷*🤒*🤕*🤢*🤮*🤧*😇*🤠*🤡*🤥*🤫*🤭*🧐*🤓*😈*👿*👹*👺*💀*👻*👽*🤖*💩*😺*😸*😹*😻*😼*😽*🙀*😿*😾*👶*👧*🧒*👦*👩*🧑*👨*👵*🧓*👴*👲*💅*🤳*💃*🕺*🕴*👫*👭*👬*💑*🤲*👐*🙌*👏*🤝*👍*👎*👊*✊*🤛*🤜*🤞*✌️*🤟*🤘*👌*👈*👉*👆*👇*☝️*✋*🤚*🖐*🖖*👋*🤙*💪*🖕*✍️*🙏*💍*💄*💋*👄*👅*👂*👃*👣*👁*👀*🧠*🗣*👤*👥";
+    var emojjii = "ðŸ˜€*ðŸ˜*ðŸ˜‚*ðŸ¤£*ðŸ˜ƒ*ðŸ˜„*ðŸ˜…*ðŸ˜†*ðŸ˜‰*ðŸ˜Š*ðŸ˜‹*ðŸ˜Ž*ðŸ˜*ðŸ˜˜*ðŸ˜—*ðŸ˜™*ðŸ˜š*ðŸ™‚*ðŸ¤—*ðŸ¤©*ðŸ¤”*ðŸ¤¨*ðŸ˜*ðŸ˜‘*ðŸ˜¶*ðŸ™„*ðŸ˜*ðŸ˜£*ðŸ˜¥*ðŸ˜®*ðŸ¤*ðŸ˜¯*ðŸ˜ª*ðŸ˜«*ðŸ˜´*ðŸ˜Œ*ðŸ˜›*ðŸ˜œ*ðŸ˜*ðŸ¤¤*ðŸ˜’*ðŸ˜“*ðŸ˜”*ðŸ˜•*ðŸ™ƒ*ðŸ¤‘*ðŸ˜²*â˜¹ï¸*ðŸ™*ðŸ˜–*ðŸ˜ž*ðŸ˜Ÿ*ðŸ˜¤*ðŸ˜¢*ðŸ˜­*ðŸ˜¦*ðŸ˜§*ðŸ˜¨*ðŸ˜©*ðŸ¤¯*ðŸ˜¬*ðŸ˜°*ðŸ˜±*ðŸ˜³*ðŸ¤ª*ðŸ˜µ*ðŸ˜¡*ðŸ˜ *ðŸ¤¬*ðŸ˜·*ðŸ¤’*ðŸ¤•*ðŸ¤¢*ðŸ¤®*ðŸ¤§*ðŸ˜‡*ðŸ¤ *ðŸ¤¡*ðŸ¤¥*ðŸ¤«*ðŸ¤­*ðŸ§*ðŸ¤“*ðŸ˜ˆ*ðŸ‘¿*ðŸ‘¹*ðŸ‘º*ðŸ’€*ðŸ‘»*ðŸ‘½*ðŸ¤–*ðŸ’©*ðŸ˜º*ðŸ˜¸*ðŸ˜¹*ðŸ˜»*ðŸ˜¼*ðŸ˜½*ðŸ™€*ðŸ˜¿*ðŸ˜¾*ðŸ‘¶*ðŸ‘§*ðŸ§’*ðŸ‘¦*ðŸ‘©*ðŸ§‘*ðŸ‘¨*ðŸ‘µ*ðŸ§“*ðŸ‘´*ðŸ‘²*ðŸ’…*ðŸ¤³*ðŸ’ƒ*ðŸ•º*ðŸ•´*ðŸ‘«*ðŸ‘­*ðŸ‘¬*ðŸ’‘*ðŸ¤²*ðŸ‘*ðŸ™Œ*ðŸ‘*ðŸ¤*ðŸ‘*ðŸ‘Ž*ðŸ‘Š*âœŠ*ðŸ¤›*ðŸ¤œ*ðŸ¤ž*âœŒï¸*ðŸ¤Ÿ*ðŸ¤˜*ðŸ‘Œ*ðŸ‘ˆ*ðŸ‘‰*ðŸ‘†*ðŸ‘‡*â˜ï¸*âœ‹*ðŸ¤š*ðŸ–*ðŸ––*ðŸ‘‹*ðŸ¤™*ðŸ’ª*ðŸ–•*âœï¸*ðŸ™*ðŸ’*ðŸ’„*ðŸ’‹*ðŸ‘„*ðŸ‘…*ðŸ‘‚*ðŸ‘ƒ*ðŸ‘£*ðŸ‘*ðŸ‘€*ðŸ§ *ðŸ—£*ðŸ‘¤*ðŸ‘¥";
     
 	$('.emo-comment-container-' + id ).html("");
 	$.each(emojjii.split('*'), function(key, value) {
