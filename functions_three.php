@@ -2149,7 +2149,7 @@ function Wo_NotificationWebPushNotifier() {
     if ($wo['config']['push'] == 0) {
         return false;
     }
-    if ($wo['config']['push_notifications'] == 0) {
+    if ($wo['config']['android_push_native'] == 0 && $wo['config']['ios_push_native'] == 0 && $wo['config']['web_push'] == 0) {
         return false;
     }
     $user_id   = Wo_Secure($wo['user']['user_id']);
@@ -2162,31 +2162,25 @@ function Wo_NotificationWebPushNotifier() {
                 $notification_id = $sql_get_notification_for_push['id'];
                 $to_id           = $sql_get_notification_for_push['recipient_id'];
                 $to_data         = Wo_UserData($sql_get_notification_for_push['recipient_id']);
-                $ids             = '';
-                if (!empty($to_data['web_device_id']) || !empty($to_data['device_id'])) {
-                    if (!empty($to_data['web_device_id']) && !empty($to_data['device_id'])) {
-                        $ids = array($to_data['web_device_id'], $to_data['device_id']);
-                    } else if (!empty($to_data['web_device_id'])) {
-                        $ids = array($to_data['web_device_id']);
-                    } else {
-                        $ids = array($to_data['device_id']);
-                    }
-                    if (!empty($to_data['web_device_id']) && empty($to_data['device_id'])) {
+                $ids             = array();
+
+                if (!empty($to_data['android_n_device_id']) || !empty($to_data['ios_n_device_id']) || !empty($to_data['web_device_id'])) {
+                    // if (!empty($to_data['web_device_id']) && !empty($to_data['device_id'])) {
+                    //     $ids = array($to_data['web_device_id'], $to_data['device_id']);
+                    // } else if (!empty($to_data['web_device_id'])) {
+                    //     $ids = array($to_data['web_device_id']);
+                    // } else {
+                    //     $ids = array($to_data['device_id']);
+                    // }
+                    
+
+                    if (!empty($to_data['web_device_id']) && empty($to_data['ios_n_device_id']) && empty($to_data['android_n_device_id'])) {
                         if ($wo['config']['web_push'] == 0) {
                             return false;
                         }
                     }
-                    $send_array                                 = array(
-                        'send_to' => $ids,
-                        'notification' => array(
-                            'notification_content' => '',
-                            'notification_title' => $wo['user']['name'],
-                            'notification_image' => $wo['user']['avatar'],
-                            'notification_data' => array(
-                                'user_id' => $user_id
-                            )
-                        )
-                    );
+                    $send_array                                 = array();
+                    
                     $lang                                       = $wo['lang'] = Wo_LangsFromDB($to_data['language']);
                     $sql_get_notification_for_push['type_text'] = '';
                     $notificationText                           = $sql_get_notification_for_push['text'];
@@ -2355,7 +2349,31 @@ function Wo_NotificationWebPushNotifier() {
                     }
                     $send_array['notification']['notification_content']     = $sql_get_notification_for_push['type_text'];
                     $send_array['notification']['notification_data']['url'] = $sql_get_notification_for_push['url'];
-                    $send       = Wo_SendPushNotification($send_array, 'native');
+
+                    if ($wo['config']['android_push_native'] == 1 && !empty($to_data['android_n_device_id'])) {
+                        $send_array['send_to'] = array($to_data['android_n_device_id']);
+                        $send_array['notification']['notification_title'] = $wo['user']['name'];
+                        $send_array['notification']['notification_image'] = $wo['user']['avatar'];
+                        $send_array['notification']['notification_data']['user_id'] = $user_id;
+
+                        $send       = Wo_SendPushNotification($send_array, 'android_native');
+                    }
+                    if ($wo['config']['ios_push_native'] == 1 && !empty($to_data['ios_n_device_id'])) {
+                        $send_array['send_to'] = array($to_data['ios_n_device_id']);
+                        $send_array['notification']['notification_title'] = $wo['user']['name'];
+                        $send_array['notification']['notification_image'] = $wo['user']['avatar'];
+                        $send_array['notification']['notification_data']['user_id'] = $user_id;
+
+                        $send       = Wo_SendPushNotification($send_array, 'ios_native');
+                    }
+                    if ($wo['config']['web_push'] == 1 && !empty($to_data['web_device_id'])) {
+                        $send_array['send_to'] = array($to_data['web_device_id']);
+                        $send_array['notification']['notification_title'] = $wo['user']['name'];
+                        $send_array['notification']['notification_image'] = $wo['user']['avatar'];
+                        $send_array['notification']['notification_data']['user_id'] = $user_id;
+                        
+                        $send       = Wo_SendPushNotification($send_array, 'web');
+                    }
                 }
                 $query_get_messages_for_push = mysqli_query($sqlConnect, "UPDATE " . T_NOTIFICATION . " SET `sent_push` = '1' WHERE `notifier_id` = '$user_id' AND `sent_push` = '0'");
             }
@@ -2372,7 +2390,7 @@ function Wo_MessagesPushNotifier() {
     if ($wo['config']['push'] == 0) {
         return false;
     }
-    if ($wo['config']['push_messages'] == 0) {
+    if ($wo['config']['android_push_messages'] == 0 && $wo['config']['ios_push_messages'] == 0) {
         return false;
     }
     $user_id   = Wo_Secure($wo['user']['user_id']);
@@ -2386,10 +2404,10 @@ function Wo_MessagesPushNotifier() {
                     $message_id = $sql_get_messages_for_push['id'];
                     $to_id      = $sql_get_messages_for_push['to_id'];
                     $to_data    = Wo_UserData($sql_get_messages_for_push['to_id']);
-                    if (!empty($to_data['device_id'])) {
+                    if (!empty($to_data['android_m_device_id']) && $wo['config']['android_push_messages'] != 0) {
                         $send_array = array(
                             'send_to' => array(
-                                $to_data['device_id']
+                                $to_data['android_m_device_id']
                             ),
                             'notification' => array(
                                 'notification_content' => $sql_get_messages_for_push['text'],
@@ -2400,7 +2418,26 @@ function Wo_MessagesPushNotifier() {
                                 )
                             )
                         );
-                        $send       = Wo_SendPushNotification($send_array);
+                        $send       = Wo_SendPushNotification($send_array,'android_messenger');
+                        if ($send) {
+                            $query_get_messages_for_push = mysqli_query($sqlConnect, "UPDATE " . T_MESSAGES . " SET `notification_id` = '$send' WHERE `id` = '$message_id'");
+                        }
+                    }
+                    if (!empty($to_data['ios_m_device_id']) && $wo['config']['ios_push_messages'] != 0) {
+                        $send_array = array(
+                            'send_to' => array(
+                                $to_data['ios_m_device_id']
+                            ),
+                            'notification' => array(
+                                'notification_content' => $sql_get_messages_for_push['text'],
+                                'notification_title' => $wo['user']['name'],
+                                'notification_image' => $wo['user']['avatar'],
+                                'notification_data' => array(
+                                    'user_id' => $user_id
+                                )
+                            )
+                        );
+                        $send       = Wo_SendPushNotification($send_array,'ios_messenger');
                         if ($send) {
                             $query_get_messages_for_push = mysqli_query($sqlConnect, "UPDATE " . T_MESSAGES . " SET `notification_id` = '$send' WHERE `id` = '$message_id'");
                         }
@@ -3893,7 +3930,9 @@ function Wo_GetAllStories($last_id = 0) {
     $query = mysqli_query($sqlConnect, $sql);
     $data  = array();
     while ($fetched_data = mysqli_fetch_assoc($query)) {
-;
+        $story_expire              = $fetched_data['expire'];
+        $fetched_data['user_data'] = Wo_UserData($fetched_data['user_id']);
+        $fetched_data['expires']   = date("Y/m/d", strtotime("$story_expire +1 day"));
         $data[]                    = $fetched_data;
     }
     return $data;
@@ -4071,15 +4110,12 @@ function Wo_GetStroies($args = array()) {
         $story_images = Wo_GetStoryMedia($fetched_data['id'], 'image');
         if (count($story_images) > 0) {
             $fetched_data['thumb']  = array_shift($story_images);
-            $fetched_data['images'] = array_shift($story_images);
+            $fetched_data['images'] = $story_images;
         }
-        $story_videos = Wo_GetStoryMedia($fetched_data['id'], 'video');
-
-  
         $fetched_data['user_data'] = Wo_UserData($fetched_data['user_id']);
-        $fetched_data['videos']    = array_shift($story_videos);
+        $fetched_data['videos']    = Wo_GetStoryMedia($fetched_data['id'], 'video');
         $fetched_data['is_owner']  = ($fetched_data['user_id'] == $wo['user']['id'] || Wo_IsAdmin() || Wo_IsModerator()) ? true : false;
-        $data[]  = $fetched_data;
+        $data[]                    = $fetched_data;
     }
     return $data;
 }
@@ -4149,6 +4185,45 @@ function Wo_UpdateCommentReply($id, $update_data = array()) {
     if ($wo['loggedin'] == false || empty($update_data) || !$id || !is_numeric($id) || $id < 1) {
         return false;
     }
+
+
+    if (!empty($update_data['text'])) {
+        $link_regex = '/(http\:\/\/|https\:\/\/|www\.)([^\ ]+)/i';
+        $i          = 0;
+        preg_match_all($link_regex, $update_data['text'], $matches);
+        foreach ($matches[0] as $match) {
+            $match_url    = strip_tags($match);
+            $syntax       = '[a]' . urlencode($match_url) . '[/a]';
+            $update_data['text'] = str_replace($match, $syntax, $update_data['text']);
+        }
+        $mention_regex = '/@([A-Za-z0-9_]+)/i';
+        preg_match_all($mention_regex, $update_data['text'], $matches);
+        foreach ($matches[1] as $match) {
+            $match         = Wo_Secure($match);
+            $match_user    = Wo_UserData(Wo_UserIdFromUsername($match));
+            $match_search  = '@' . $match;
+            $match_replace = '@[' . $match_user['user_id'] . ']';
+            if (isset($match_user['user_id'])) {
+                $update_data['text'] = str_replace($match_search, $match_replace, $update_data['text']);
+                $mentions[]   = $match_user['user_id'];
+            }
+        }
+    }
+    $hashtag_regex = '/#([^`~!@$%^&*\#()\-+=\\|\/\.,<>?\'\":;{}\[\]* ]+)/i';
+    preg_match_all($hashtag_regex, $update_data['text'], $matches);
+    foreach ($matches[1] as $match) {
+        if (!is_numeric($match)) {
+            $hashdata = Wo_GetHashtag($match);
+            if (is_array($hashdata)) {
+                $match_search      = '#' . $match;
+                $match_replace     = '#[' . $hashdata['id'] . ']';
+                $update_data['text']      = str_replace($match_search, $match_replace, $update_data['text']);
+                $hashtag_query     = "UPDATE " . T_HASHTAGS . " SET `last_trend_time` = " . time() . ", `trend_use_num` = " . ($hashdata['trend_use_num'] + 1) . " WHERE `id` = " . $hashdata['id'];
+                $hashtag_sql_query = mysqli_query($sqlConnect, $hashtag_query);
+            }
+        }
+    }
+
     foreach ($update_data as $field => $data) {
         $update[] = '`' . $field . '` = \'' . $data . '\'';
     }
@@ -5449,9 +5524,8 @@ function Wo_GetFriendsStatus($data_array = array('limit' => 8, 'user_id' => 0)) 
     if (!empty($data_array['api'])) {
         $group_by = "";
     }
-    $query     = "SELECT id FROM " . T_USER_STORY . " WHERE (user_id IN (SELECT following_id FROM " . T_FOLLOWERS . " WHERE follower_id = '$user_id') OR user_id = $user_id) AND user_id IN (SELECT user_id FROM " . T_USERS . " WHERE active = '1') $group_by ORDER BY id DESC";
- $data_array['limit'];
-
+    // $query     = "SELECT * FROM " . T_USER_STORY . " WHERE (user_id IN (SELECT following_id FROM " . T_FOLLOWERS . " WHERE follower_id = '$user_id') OR user_id = $user_id) AND user_id IN (SELECT user_id FROM " . T_USERS . " WHERE active = '1') $group_by ORDER BY id DESC";
+    $query     = "SELECT DISTINCT user_id,title,description,posted,expire,thumbnail,(SELECT MAX(us.id) FROM " . T_USER_STORY . " us WHERE us.user_id = " . T_USER_STORY . ".user_id) AS id  FROM " . T_USER_STORY . " WHERE (user_id IN (SELECT following_id FROM " . T_FOLLOWERS . " WHERE follower_id = '$user_id') OR user_id = $user_id) AND user_id IN (SELECT user_id FROM " . T_USERS . " WHERE active = '1') $group_by ORDER BY id DESC LIMIT ".$data_array['limit'];
     $query_run = mysqli_query($sqlConnect, $query);
 
     while ($fetched_data = mysqli_fetch_assoc($query_run)) {

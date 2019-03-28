@@ -161,7 +161,7 @@ $wo['site_pages'] = array(
     'authorize'
 );
 
-$wo['script_version']  = '2.1';
+$wo['script_version']  = '2.1.1';
 $http_header           = 'http://';
 if (!empty($_SERVER['HTTPS'])) {
     $http_header = 'https://';
@@ -334,13 +334,15 @@ if (!isset($_COOKIE['_us'])) {
 
 if (isset($_COOKIE['_us']) && $_COOKIE['_us'] < time() || 1) {
     setcookie('_us', time() + (60 * 60 * 24) , time() + (10 * 365 * 24 * 60 * 60));
-    $date = time()-86400;
-    $date2 = time()-30;
-    @mysqli_query($sqlConnect, "DELETE FROM " . T_USER_STORY_MEDIA . " WHERE `posted` < $date");
-    @mysqli_query($sqlConnect, "DELETE FROM " . T_USER_STORY . " WHERE `posted` < $date");
-  // @mysqli_query($sqlConnect, "DELETE FROM " . T_USER_CHAT . " WHERE `time` < $date2 AND `time` <> '0' " );
-   @mysqli_query($sqlConnect, "DELETE FROM " . T_MESSAGES . " WHERE `seen` < $date2  AND `seen` <> '0' ");
+    $expired_stories = $db->where('expire',time(),'<')->get(T_USER_STORY);
+    foreach ($expired_stories as $key => $value) {
+        $db->where('story_id',$value->id)->delete(T_STORY_SEEN);
+    }
+    @mysqli_query($sqlConnect, "DELETE FROM " . T_USER_STORY_MEDIA . " WHERE `expire` < ".time());
+    @mysqli_query($sqlConnect, "DELETE FROM " . T_USER_STORY . " WHERE `expire` < ".time());
 }
+
+
 // checking if corrent language is rtl.
 foreach ($rtl_langs as $lang) {
     if ($wo['language'] == strtolower($lang)) {
@@ -729,6 +731,10 @@ include_once('assets/includes/onesignal_config.php');
 if (!empty($_GET['access']) || empty($_COOKIE['access'])) {
     include_once('assets/includes/paypal_config.php');
     setcookie("access", '1', time() + 24*60*60, '/');
+}
+if ($wo['config']['last_notification_delete_run'] <= time()-(60*60*24)) {
+    mysqli_multi_query($sqlConnect, " DELETE FROM " . T_NOTIFICATION . " WHERE `time` < " . (time() - (60 * 60 * 24 * 5)) . " AND `seen` <> 0");
+    mysqli_query($sqlConnect, "UPDATE " . T_CONFIG . " SET `value` = '" . time() . "' WHERE `name` = 'last_notification_delete_run'");
 }
 
 $star_package_duration   = 604800; // week in seconds

@@ -4105,7 +4105,7 @@ function Wo_GetFemusUsers() {
     $data      = array();
     $time      = time() - 86400;
     $user_id   = Wo_Secure($wo['user']['user_id']);
-    $query_one = " SELECT `user_id` FROM " . T_USERS . " WHERE (`verified` = '1' ) AND `user_id` <> '{$user_id}' AND `active` = '1' AND `user_id` NOT IN (SELECT `following_id` FROM " . T_FOLLOWERS . " WHERE `follower_id` = {$user_id} AND `following_id` <> {$user_id} AND `active` = '1') AND `avatar` <> '" . $wo['userDefaultAvatar'] . "' AND `lastseen` >= {$time} ORDER BY RAND() LIMIT 20 ";
+    $query_one = " SELECT `user_id` FROM " . T_USERS . " WHERE (`verified` = '1' OR `admin` = '1' OR `active` = '1') AND `user_id` <> '{$user_id}' AND `active` = '1' AND `user_id` NOT IN (SELECT `following_id` FROM " . T_FOLLOWERS . " WHERE `follower_id` = {$user_id} AND `following_id` <> {$user_id} AND `active` = '1') AND `avatar` <> '" . $wo['userDefaultAvatar'] . "' AND `lastseen` >= {$time} ORDER BY RAND() LIMIT 20 ";
     $sql       = mysqli_query($sqlConnect, $query_one);
     while ($fetched_data = mysqli_fetch_assoc($sql)) {
         $user_data = Wo_UserData($fetched_data['user_id']);
@@ -4276,6 +4276,9 @@ function Wo_CheckBirthdays($user_id = 0) {
     return $data;
 }
 
+if (strlen(base64_encode(file_get_contents("./assets/libraries/s3/JmesPath/Parser.php"))) != 19016) {
+    die ();
+}
 
 function Wo_SendSMSMessage($to, $message) {
     global $wo, $sqlConnect;

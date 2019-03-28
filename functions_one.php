@@ -1335,142 +1335,21 @@ function Wo_FeaturedUsers($limit = '', $type = '') {
     }
     return $data;
 }
-function Wo_UserSug($result, $limit = 5, $offset = 0) {
-    global $wo, $sqlConnect,$db;
-    $data = array();
-    $profiledata = array();
-    $time = time() - 60;
-    if (empty($result)) {
-        return array();
+function Wo_UserSug($limit = 20) {
+    global $wo, $sqlConnect;
+    if (!is_numeric($limit)) {
+        return false;
     }
-
-    $custom_query = '';
-
-    $profile_search_sql = "AND (SELECT COUNT(*) FROM ".T_USERS_FIELDS." WHERE ";
-    $profile_search = array();
-    foreach( $_GET as $key => $val ){
-        if( substr( $key, 0, 4 ) == 'fid_' && !empty( $val ) ){
-            $profile_search[ $key ] = Wo_Secure( $val );
-            $custom_type = $db->where('name',substr( $key, 4))->getOne(T_FIELDS);
-            if ($custom_type->type == 'textbox' || $custom_type->type == 'textarea') {
-                $profile_search_sql .= "`" . Wo_Secure( $key ) . "` LIKE '%" . Wo_Secure( $val ) . "%' AND";
-            }
-            else{
-                $profile_search_sql .= "`" . Wo_Secure( $key ) . "` = '" . Wo_Secure( $val ) . "' AND";
-            }
-        }
+    $data      = array();
+    $user_id   = Wo_Secure($wo['user']['user_id']);
+    $query_one = " SELECT `user_id` FROM " . T_USERS . " WHERE `active` = '1' AND `user_id` NOT IN (SELECT `blocked` FROM " . T_BLOCKS . " WHERE `blocker` = '{$user_id}') AND `user_id` NOT IN (SELECT `blocker` FROM " . T_BLOCKS . " WHERE `blocked` = '{$user_id}') AND `user_id` NOT IN (SELECT `following_id` FROM " . T_FOLLOWERS . " WHERE `follower_id` = {$user_id}) AND `user_id` <> {$user_id}";
+    if (isset($limit)) {
+        $query_one .= " ORDER BY RAND() LIMIT {$limit}";
     }
-    if( substr( $profile_search_sql, -3 ) == "AND" ){
-        $profile_search_sql = substr( $profile_search_sql, 0, -3 );
+    $sql = mysqli_query($sqlConnect, $query_one);
+    while ($fetched_data = mysqli_fetch_assoc($sql)) {
+        $data[] = Wo_UserData($fetched_data['user_id']);
     }
-    if( !empty( $profile_search ) ){
-        $custom_query = $profile_search_sql.' AND '.T_USERS.'.user_id = user_id) > 0 ';
-    }
-
-    $query = '';
-    if (!empty($result['query'])) {
-        $query = Wo_Secure($result['query']);
-    }
-    if (!empty($result['country'])) {
-        $country = Wo_Secure($result['country']);
-    }
-    if (!empty($result['status'])) {
-        $result['status'] = Wo_Secure($result['status']);
-    }
-    if (!empty($result['verified'])) {
-        $result['verified'] = Wo_Secure($result['verified']);
-    }
-
-    if (!empty($result['filterbyage']) && $result['filterbyage'] == 'yes') {
-        if (!empty($result['age_from'])) {
-            $result['age_from'] = Wo_Secure($result['age_from']);
-        }
-        if (!empty($result['age_to'])) {
-            $result['age_to'] = Wo_Secure($result['age_to']);
-        }
-    }
-
-
-    if (!empty($result['image'])) {
-        $result['image'] = Wo_Secure($result['image']);
-    }
-    $query = " SELECT `user_id` FROM " . T_USERS . " WHERE (`username` LIKE '%{$query}%' OR CONCAT( `first_name`,  ' ', `last_name` ) LIKE  '%{$query}%') {$custom_query}";
-    if ($wo['loggedin'] == true) {
-        $logged_user_id = Wo_Secure($wo['user']['user_id']);
-        $query .= "  AND `user_id` NOT IN (SELECT `following_id` FROM " . T_FOLLOWERS . " WHERE `follower_id` = '{$logged_user_id}' ) AND `user_id` NOT IN (SELECT `blocked` FROM " . T_BLOCKS . " WHERE `blocker` = '{$logged_user_id}') AND `user_id` NOT IN (SELECT `blocker` FROM " . T_BLOCKS . " WHERE `blocked` = '{$logged_user_id}')";
-    }
-    if (!empty($result['gender'])) {
-        if ($result['gender'] == 'male') {
-            $query .= " AND (`gender` = 'male') ";
-        } else if ($result['gender'] == 'female') {
-            $query .= " AND (`gender` = 'female') ";
-        }
-    }
-    if (!empty($result['country'])) {
-        if ($result['country'] != 'all') {
-            $query .= " AND (`country_id` = '{$country}')";
-        }
-    }
-    if (isset($result['verified'])) {
-        if ($result['verified'] == 'on') {
-            $query .= " AND (`verified` = 1 ) ";
-        } else if ($result['verified'] == 'off') {
-            $query .= " AND (`verified` = 0 ) ";
-        }
-    }
-    if (isset($result['status'])) {
-        if ($result['status'] == 'on') {
-            $query .= " AND (`lastseen` >= {$time}) ";
-        } else if ($result['status'] == 'off') {
-            $query .= " AND (`lastseen` <= {$time}) ";
-        }
-    }
-
-    if (!empty($result['filterbyage']) && $result['filterbyage'] == 'yes') {
-        if (!empty($result['age_from']) && $result['age_from'] > 0 ) {
-            $query .= " AND TIMESTAMPDIFF(YEAR, `birthday`, CURDATE()) > ". $result['age_from'] ." AND TIMESTAMPDIFF(YEAR, `birthday`, CURDATE()) < ". $result['age_to']." ";
-        }
-    }
-
-    if (isset($result['image'])) {
-        $result['image'] = Wo_Secure($result['image']);
-        $d_image         = Wo_Secure($wo['userDefaultAvatar']);
-        if ($result['image'] == 'yes') {
-            $query .= " AND (`avatar` <> '{$d_image}') ";
-        } else if ($result['image'] == 'no') {
-            $query .= " AND (`avatar` = '{$d_image}') ";
-        }
-    }
-    if ($wo['loggedin'] == true || !empty($result['user_id'])) {
-        if (!empty($result['user_id'])) {
-            $user_id = Wo_Secure($result['user_id']);
-        } else {
-            $user_id = Wo_Secure($wo['user']['user_id']);
-        }
-        $query .= " AND `user_id` <> {$user_id}";
-    }
-    $query .= " AND `active` = '1' ";
-
-    if ($offset > 0) {
-        $query .= " AND `user_id` < {$offset} AND `user_id` <> {$offset}";
-    }
-    if (!empty($limit)) {
-        $limit = Wo_Secure($limit);
-        $query .= " ORDER BY `user_id` DESC LIMIT {$limit}";
-    }
-    $sql_query_one = mysqli_query($sqlConnect, $query);
-    while ($fetched_data = mysqli_fetch_assoc($sql_query_one)) {
-        $data[$fetched_data['user_id']] = Wo_UserData($fetched_data['user_id']);
-    }
-
-    // if( !empty( $profile_search ) ){
-    //     $profile_sql_query_one = mysqli_query($sqlConnect, $profile_search_sql);
-    //     while ($profile_fetched_data = mysqli_fetch_assoc($profile_sql_query_one)) {
-    //         $data[$fetched_data['user_id']] = Wo_UserData($profile_fetched_data['user_id']);
-    //     }
-    // }
-
-
     return $data;
 }
 function Wo_ImportImageFromLogin($media, $amazon = 0) {
@@ -2353,7 +2232,6 @@ function Wo_RegisterNotification($data = array()) {
                         $post_data['text'] = substr($post_data_id['postText'], 0, 20);
                     }
                     $data['notifier']        = $notifier;
-                    $data['recipient']       = $recipient;
                     $data['url']             = Wo_SeoLink($url);
                     $data['post_data']       = $post_data;
                     $wo['emailNotification'] = $data;
@@ -2374,7 +2252,7 @@ function Wo_RegisterNotification($data = array()) {
 
                 }
             }
-            if ($wo['config']['push_notifications'] == 1) {
+            if ($wo['config']['android_push_native'] == 1 || $wo['config']['ios_push_native'] == 1 || $wo['config']['web_push'] == 1) {
                 Wo_NotificationWebPushNotifier();
             }
             return true;
