@@ -3893,9 +3893,7 @@ function Wo_GetAllStories($last_id = 0) {
     $query = mysqli_query($sqlConnect, $sql);
     $data  = array();
     while ($fetched_data = mysqli_fetch_assoc($query)) {
-        $story_expire              = $fetched_data['expire'];
-        $fetched_data['user_data'] = Wo_UserData($fetched_data['user_id']);
-        $fetched_data['expires']   = date("Y/m/d", strtotime("$story_expire +1 day"));
+;
         $data[]                    = $fetched_data;
     }
     return $data;
@@ -4073,12 +4071,15 @@ function Wo_GetStroies($args = array()) {
         $story_images = Wo_GetStoryMedia($fetched_data['id'], 'image');
         if (count($story_images) > 0) {
             $fetched_data['thumb']  = array_shift($story_images);
-            $fetched_data['images'] = $story_images;
+            $fetched_data['images'] = array_shift($story_images);
         }
+        $story_videos = Wo_GetStoryMedia($fetched_data['id'], 'video');
+
+  
         $fetched_data['user_data'] = Wo_UserData($fetched_data['user_id']);
-        $fetched_data['videos']    = Wo_GetStoryMedia($fetched_data['id'], 'video');
+        $fetched_data['videos']    = array_shift($story_videos);
         $fetched_data['is_owner']  = ($fetched_data['user_id'] == $wo['user']['id'] || Wo_IsAdmin() || Wo_IsModerator()) ? true : false;
-        $data[]                    = $fetched_data;
+        $data[]  = $fetched_data;
     }
     return $data;
 }
@@ -5448,8 +5449,9 @@ function Wo_GetFriendsStatus($data_array = array('limit' => 8, 'user_id' => 0)) 
     if (!empty($data_array['api'])) {
         $group_by = "";
     }
-    // $query     = "SELECT * FROM " . T_USER_STORY . " WHERE (user_id IN (SELECT following_id FROM " . T_FOLLOWERS . " WHERE follower_id = '$user_id') OR user_id = $user_id) AND user_id IN (SELECT user_id FROM " . T_USERS . " WHERE active = '1') $group_by ORDER BY id DESC";
-    $query     = "SELECT DISTINCT user_id,title,description,posted,expire,thumbnail,(SELECT MAX(us.id) FROM " . T_USER_STORY . " us WHERE us.user_id = " . T_USER_STORY . ".user_id) AS id  FROM " . T_USER_STORY . " WHERE (user_id IN (SELECT following_id FROM " . T_FOLLOWERS . " WHERE follower_id = '$user_id') OR user_id = $user_id) AND user_id IN (SELECT user_id FROM " . T_USERS . " WHERE active = '1') $group_by ORDER BY id DESC LIMIT ".$data_array['limit'];
+    $query     = "SELECT id FROM " . T_USER_STORY . " WHERE (user_id IN (SELECT following_id FROM " . T_FOLLOWERS . " WHERE follower_id = '$user_id') OR user_id = $user_id) AND user_id IN (SELECT user_id FROM " . T_USERS . " WHERE active = '1') $group_by ORDER BY id DESC";
+ $data_array['limit'];
+
     $query_run = mysqli_query($sqlConnect, $query);
 
     while ($fetched_data = mysqli_fetch_assoc($query_run)) {
