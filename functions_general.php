@@ -1601,9 +1601,7 @@ function getBrowser() {
       $platform = 'Unknown';
       $version= "";
       // First get the platform?
-      if (preg_match('/linux/i', $u_agent)) {
-        $platform = 'linux';
-      } elseif (preg_match('/macintosh|mac os x/i', $u_agent)) {
+      if (preg_match('/macintosh|mac os x/i', $u_agent)) {
         $platform = 'mac';
       } elseif (preg_match('/windows|win32/i', $u_agent)) {
         $platform = 'windows';
@@ -1613,6 +1611,8 @@ function getBrowser() {
         $platform = 'Android Web';
       } else if (preg_match("/(android|avantgo|blackberry|bolt|boost|cricket|docomo|fone|hiptop|mini|mobi|palm|phone|pie|tablet|up\.browser|up\.link|webos|wos)/i", $u_agent)) {
         $platform = 'Mobile';
+      } else if (preg_match('/linux/i', $u_agent)) {
+        $platform = 'linux';
       }
       // Next get the name of the useragent yes seperately and for good reason
       if(preg_match('/MSIE/i',$u_agent) && !preg_match('/Opera/i',$u_agent)) {
@@ -1666,22 +1666,24 @@ function getBrowser() {
 }
 
 function Wo_RunInBackground($data = array()) {
-    ob_end_clean();
-    header("Content-Encoding: none");
-    header("Connection: close");
-    ignore_user_abort();
-    ob_start();
-    if (!empty($data)) {
-        header('Content-Type: application/json');
-        echo json_encode($data);
-    }
-    $size = ob_get_length();
-    header("Content-Length: $size");
-    ob_end_flush();
-    flush();
-    session_write_close();
-    if (is_callable('fastcgi_finish_request')) {
-        fastcgi_finish_request();
+    if (!empty(ob_get_status())) {
+        ob_end_clean();
+        header("Content-Encoding: none");
+        header("Connection: close");
+        ignore_user_abort();
+        ob_start();
+        if (!empty($data)) {
+            header('Content-Type: application/json');
+            echo json_encode($data);
+        }
+        $size = ob_get_length();
+        header("Content-Length: $size");
+        ob_end_flush();
+        flush();
+        session_write_close();
+        if (is_callable('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        }
     }
 }
 

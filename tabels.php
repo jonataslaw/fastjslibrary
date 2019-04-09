@@ -102,5 +102,10 @@ define('T_USERGIFTS', 'Wo_User_Gifts');
 define('T_STICKERS', 'Wo_Stickers');
 define('T_REACTIONS', 'Wo_Reactions');
 define('T_STORY_SEEN', 'Wo_Story_Seen');
-define('T_USER_CHAT', 'Wo_UsersChat');
+define('T_MANAGE_PRO', 'Wo_Manage_Pro');
+define('T_PAGES_CATEGORY', 'Wo_Pages_Categories');
+define('T_GROUPS_CATEGORY', 'Wo_Groups_Categories');
+define('T_BLOGS_CATEGORY', 'Wo_Blogs_Categories');
+define('T_PRODUCTS_CATEGORY', 'Wo_Products_Categories');
+define('T_BANK_TRANSFER', 'bank_receipts');
 ?>
