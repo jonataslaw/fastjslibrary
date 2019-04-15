@@ -66,6 +66,9 @@ function Wo_RegisterPoint($post_id, $type, $action = '+'){
         case "createpost":
             $points = $wo['config']['createpost_point'];
             break;
+        case "createblog":
+            $points = $wo['config']['createblog_point'];
+            break;
         case "blog_comment":
             $query_comments     = "SELECT `id` FROM `" . T_BLOG_COMM . "` WHERE `id` = ".$post_id." AND `user_id` = ".$user_id;
             $sql_query_comments = mysqli_query($sqlConnect, $query_comments);
@@ -3160,9 +3163,9 @@ function Wo_AddBlogCommentDisLikes($id, $blog) {
 }
 function Wo_GetMovies($args = array()) {
     global $sqlConnect, $wo;
-    if ($wo['loggedin'] == false) {
-        return false;
-    }
+    // if ($wo['loggedin'] == false) {
+    //     return false;
+    // }
     $options = array(
         "offset" => 0,
         "limit" => 26,
@@ -3257,9 +3260,9 @@ function Wo_GetMtwFilms($limit = 26) {
 }
 function Wo_SearchFilms($key) {
     global $sqlConnect, $wo;
-    if ($wo['loggedin'] == false || !$key) {
-        return false;
-    }
+    // if ($wo['loggedin'] == false || !$key) {
+    //     return false;
+    // }
     $data  = array();
     $key   = Wo_Secure($key);
     $sql   = "SELECT  *  FROM 
@@ -3424,7 +3427,7 @@ function Wo_IsMovieCommReplyOwner($id) {
 }
 function Wo_GetMovieCommentData($id) {
     global $sqlConnect, $wo;
-    if ($wo['loggedin'] == false || !$id || !is_numeric($id) || $id < 1) {
+    if (!$id || !is_numeric($id) || $id < 1) {
         return false;
     }
     $query        = mysqli_query($sqlConnect, "SELECT * FROM  " . T_MOVIE_COMMS . " WHERE `id` = '$id'");
@@ -3444,7 +3447,7 @@ function Wo_GetMovieCommentData($id) {
 }
 function Wo_GetMovieCommReplyData($id) {
     global $sqlConnect, $wo;
-    if ($wo['loggedin'] == false || !$id || !is_numeric($id) || $id < 1) {
+    if (!$id || !is_numeric($id) || $id < 1) {
         return false;
     }
     $query        = mysqli_query($sqlConnect, "SELECT * FROM  " . T_MOVIE_COMM_REPLIES . " WHERE `id` = '$id'");
@@ -5439,7 +5442,6 @@ function Wo_GetUserCountryName($user_data = array()) {
     }
     return $user_from;
 }
-
 function Wo_GetNearbyUsers($args = array()) {
     global $wo, $sqlConnect;
     if ($wo['loggedin'] == false || empty($args)) {
@@ -5463,10 +5465,8 @@ function Wo_GetNearbyUsers($args = array()) {
     $relship      = Wo_Secure($args['relship']);
     $limit        = Wo_Secure($args['limit']);
     $unit         = 6371;
-   $user_lat     = $wo['user']['lat'];
-   $user_lng     = $wo['user']['lng'];
-//    $user_lat     = ".$ipdetails->get_latitude() ." ;
-//    $user_lng     =  ".$ipdetails->get_longitude() ." ;
+    $user_lat     = $wo['user']['lat'];
+    $user_lng     = $wo['user']['lng'];
     $user         = $wo['user']['id'];
     $t_users      = T_USERS;
     $t_followers  = T_FOLLOWERS;
@@ -5505,6 +5505,7 @@ function Wo_GetNearbyUsers($args = array()) {
     FROM $t_users WHERE `user_id` <> '$user'   {$sub_sql}
     AND `user_id` NOT IN (SELECT `follower_id` FROM $t_followers WHERE `follower_id` <> {$user} AND `following_id` = {$user} AND `active` = '1')
     AND `user_id` NOT IN (SELECT `following_id` FROM $t_followers WHERE `follower_id` = {$user} AND `following_id` <> {$user} AND `active` = '1')
+    AND `lat` <> 0 AND `lng` <> 0
     HAVING distance < '$distance' ORDER BY `user_id` DESC LIMIT 0, $limit ";
     $query = mysqli_query($sqlConnect, $sql);
     while ($fetched_data = mysqli_fetch_assoc($query)) {
@@ -5541,10 +5542,8 @@ function Wo_GetNearbyUsersCount($args = array()) {
     $relship      = Wo_Secure($args['relship']);
     $limit        = Wo_Secure($args['limit']);
     $unit         = 6371;
-   $user_lat     = $wo['user']['lat'];
-   $user_lng     = $wo['user']['lng'];
-  //  $user_lat     = ".$ipdetails->get_latitude() ." ;
- //   $user_lng     =  ".$ipdetails->get_longitude() ." ;
+    $user_lat     = $wo['user']['lat'];
+    $user_lng     = $wo['user']['lng'];
     $user         = $wo['user']['id'];
     $t_users      = T_USERS;
     $t_followers  = T_FOLLOWERS;
@@ -5583,7 +5582,7 @@ function Wo_GetNearbyUsersCount($args = array()) {
     FROM $t_users WHERE `user_id` <> '$user'   {$sub_sql}
     AND `user_id` NOT IN (SELECT `follower_id` FROM $t_followers WHERE `follower_id` <> {$user} AND `following_id` = {$user} AND `active` = '1')
     AND `user_id` NOT IN (SELECT `following_id` FROM $t_followers WHERE `follower_id` = {$user} AND `following_id` <> {$user} AND `active` = '1')
-     GROUP BY user_id
+    AND `lat` <> 0 AND `lng` <> 0 GROUP BY user_id
     HAVING distance < '$distance' ORDER BY `user_id` DESC ";
     $query = mysqli_query($sqlConnect, $sql);
     return mysqli_num_rows($query);
