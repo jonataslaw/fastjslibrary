@@ -1018,7 +1018,7 @@ function Wo_GetMedia($media) {
         if (empty($wo['config']['spaces_key']) || empty($wo['config']['spaces_secret']) || empty($wo['config']['space_region']) || empty($wo['config']['space_name'])) {
             return $wo['config']['site_url'] . '/' . $media;
         }
-        return  'https://' . $wo['config']['space_name'] . '.' . $wo['config']['space_region'] . '.digitaloceanspaces.com/' . $media;
+        return  'https://' . $wo['config']['space_name'] . '.' . $wo['config']['space_region'] . '.cdn.digitaloceanspaces.com/' . $media;
     } else if ($wo['config']['ftp_upload'] == 1) {
         return addhttp($wo['config']['ftp_endpoint']) . '/' . $media;
     }

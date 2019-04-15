@@ -5439,6 +5439,7 @@ function Wo_GetUserCountryName($user_data = array()) {
     }
     return $user_from;
 }
+
 function Wo_GetNearbyUsers($args = array()) {
     global $wo, $sqlConnect;
     if ($wo['loggedin'] == false || empty($args)) {
@@ -5462,8 +5463,10 @@ function Wo_GetNearbyUsers($args = array()) {
     $relship      = Wo_Secure($args['relship']);
     $limit        = Wo_Secure($args['limit']);
     $unit         = 6371;
-    $user_lat     = $wo['user']['lat'];
-    $user_lng     = $wo['user']['lng'];
+   $user_lat     = $wo['user']['lat'];
+   $user_lng     = $wo['user']['lng'];
+//    $user_lat     = ".$ipdetails->get_latitude() ." ;
+//    $user_lng     =  ".$ipdetails->get_longitude() ." ;
     $user         = $wo['user']['id'];
     $t_users      = T_USERS;
     $t_followers  = T_FOLLOWERS;
@@ -5502,7 +5505,6 @@ function Wo_GetNearbyUsers($args = array()) {
     FROM $t_users WHERE `user_id` <> '$user'   {$sub_sql}
     AND `user_id` NOT IN (SELECT `follower_id` FROM $t_followers WHERE `follower_id` <> {$user} AND `following_id` = {$user} AND `active` = '1')
     AND `user_id` NOT IN (SELECT `following_id` FROM $t_followers WHERE `follower_id` = {$user} AND `following_id` <> {$user} AND `active` = '1')
-    AND `lat` <> 0 AND `lng` <> 0
     HAVING distance < '$distance' ORDER BY `user_id` DESC LIMIT 0, $limit ";
     $query = mysqli_query($sqlConnect, $sql);
     while ($fetched_data = mysqli_fetch_assoc($query)) {
@@ -5539,8 +5541,10 @@ function Wo_GetNearbyUsersCount($args = array()) {
     $relship      = Wo_Secure($args['relship']);
     $limit        = Wo_Secure($args['limit']);
     $unit         = 6371;
-    $user_lat     = $wo['user']['lat'];
-    $user_lng     = $wo['user']['lng'];
+   $user_lat     = $wo['user']['lat'];
+   $user_lng     = $wo['user']['lng'];
+  //  $user_lat     = ".$ipdetails->get_latitude() ." ;
+ //   $user_lng     =  ".$ipdetails->get_longitude() ." ;
     $user         = $wo['user']['id'];
     $t_users      = T_USERS;
     $t_followers  = T_FOLLOWERS;
@@ -5579,7 +5583,7 @@ function Wo_GetNearbyUsersCount($args = array()) {
     FROM $t_users WHERE `user_id` <> '$user'   {$sub_sql}
     AND `user_id` NOT IN (SELECT `follower_id` FROM $t_followers WHERE `follower_id` <> {$user} AND `following_id` = {$user} AND `active` = '1')
     AND `user_id` NOT IN (SELECT `following_id` FROM $t_followers WHERE `follower_id` = {$user} AND `following_id` <> {$user} AND `active` = '1')
-    AND `lat` <> 0 AND `lng` <> 0 GROUP BY user_id
+     GROUP BY user_id
     HAVING distance < '$distance' ORDER BY `user_id` DESC ";
     $query = mysqli_query($sqlConnect, $sql);
     return mysqli_num_rows($query);
