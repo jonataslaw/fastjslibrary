@@ -45,7 +45,7 @@ if (in_array($_SERVER["REMOTE_ADDR"], $baned_ips)) {
 $config              = Wo_GetConfig();
 $db                  = new MysqliDb($sqlConnect);
 
-if( ISSET( $_GET['theme'] ) && in_array($_GET['theme'], ['default', 'sunshine'])){
+if( ISSET( $_GET['theme'] ) ){
     $_SESSION['theme'] = $_GET['theme'];
 }
 
@@ -162,7 +162,7 @@ $wo['site_pages'] = array(
     'authorize'
 );
 
-$wo['script_version']  = '2.2.2';
+$wo['script_version']  = '2.2.1';
 $http_header           = 'http://';
 if (!empty($_SERVER['HTTPS'])) {
     $http_header = 'https://';
@@ -290,7 +290,7 @@ if (isset($_GET['lang']) AND !empty($_GET['lang'])) {
 }
 if ($wo['loggedin'] == true && $wo['config']['cache_sidebar'] == 1) {
     if (!empty($_COOKIE['last_sidebar_update'])) {
-        if ($_COOKIE['last_sidebar_update'] < (time() - 120)) {
+        if ($_COOKIE['last_sidebar_update'] < (time() - 1120)) {
             Wo_CleanCache();
         }
     } else {
@@ -335,12 +335,12 @@ if (!isset($_COOKIE['_us'])) {
 
 if (isset($_COOKIE['_us']) && $_COOKIE['_us'] < time() || 1) {
     setcookie('_us', time() + (60 * 60 * 24) , time() + (10 * 365 * 24 * 60 * 60));
-    $expired_stories = $db->where('expire',time(),'<')->get(T_USER_STORY);
-    foreach ($expired_stories as $key => $value) {
-        $db->where('story_id',$value->id)->delete(T_STORY_SEEN);
-    }
-    @mysqli_query($sqlConnect, "DELETE FROM " . T_USER_STORY_MEDIA . " WHERE `expire` < ".time());
-    @mysqli_query($sqlConnect, "DELETE FROM " . T_USER_STORY . " WHERE `expire` < ".time());
+    $date1 = time()-86400;
+    $date2 = time()-90;
+    @mysqli_query($sqlConnect, "DELETE FROM " . T_USER_STORY_MEDIA . " WHERE `posted` < $date1");
+    @mysqli_query($sqlConnect, "DELETE FROM " . T_USER_STORY . " WHERE `posted` < $date1");
+  // @mysqli_query($sqlConnect, "DELETE FROM " . T_USER_CHAT . " WHERE `time` < $date2 AND `time` <> '0' " );
+   @mysqli_query($sqlConnect, "DELETE FROM " . T_MESSAGES . " WHERE `seen` < $date2  AND `seen` <> '0' ");
 }
 
 
@@ -769,8 +769,4 @@ try {
     $wo['group_categories']   = [];
     $wo['blog_categories']   = [];
     $wo['products_categories']   = [];
-}
-
-if (!empty($_GET['theme'])) {
-    Wo_CleanCache();
 }
