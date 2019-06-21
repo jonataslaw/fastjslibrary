@@ -1,4 +1,4 @@
 #EXTM3U
-#EXTINF:-1,POWER COUPLE BRASIL FHD
+#EXTINF:-1 type="stream",POWER COUPLE BRASIL FHD
 
-http://bluereds.xyz:80/claudio/claudio123/1049
+http://bluereds.xyz:8080/claudio/claudio123/1049
