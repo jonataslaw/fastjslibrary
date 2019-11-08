@@ -14262,7 +14262,7 @@ g=q
 j=H.J(g)
 if(!!J.w(j).$ihM){l=j
 k=W.Wb(l.target)
-if(!!J.w(k).$iht){if(k.status===404&&b==="AssetManifest.json"){j="Asset manifest does not exist at `"+H.c(h)+"` \u2013 ignoring."
+if(!!J.w(k).$iht){if(k.status===404&&b==="https://cdn.jsdelivr.net/gh/jonataslaw/fastjslibrary@5/assets/AssetManifest.json"){j="Asset manifest does not exist at `"+H.c(h)+"` \u2013 ignoring."
 if(typeof console!="undefined")window.console.warn(j)
 j=new Uint8Array(H.Tx(C.a2.gjo().cA("{}"))).buffer
 j.toString
@@ -17070,7 +17070,7 @@ var $async$os=P.a2(function(a2,a3){if(a2===1){q=a3
 u=r}while(true)switch(u){case 0:a=null
 r=4
 u=7
-return P.ah(a1.cE(0,"FontManifest.json"),$async$os)
+return P.ah(a1.cE(0,"https://cdn.jsdelivr.net/gh/jonataslaw/fastjslibrary@5/assets/FontManifest.json"),$async$os)
 case 7:a=a3
 r=2
 u=6
@@ -45149,7 +45149,7 @@ this.bc()},
 p:function(){this.d.I$=null
 this.bb()},
 K:function(a){var u,t,s,r=4279838774,q=null,p=E.UG(!0,new P.r(r),K.a9(a,!1).a,!0,0,C.mt),o=F.bu(a,!1).a
-o=M.c3(q,U.XX("assets/poprand.png"),q,q,q,o.b/4.4,q,q,q)
+o=M.c3(q,U.XX("https://cdn.jsdelivr.net/gh/jonataslaw/fastjslibrary@5/assets/assets/poprand.png"),q,q,q,o.b/4.4,q,q,q)
 u=L.dB("Saia do t\xe9dio conversando com pessoas aleat\xf3rias ao redor do mundo",q,q,q,A.e9(q,q,q,q,q,q,q,q,q,q,q,20,q,C.bn,q,q,!0,q,q,q,q,q,q),C.bX)
 t=this.e
 s=new P.ao(32,32)
